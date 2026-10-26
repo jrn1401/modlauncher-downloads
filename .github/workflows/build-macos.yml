@@ -1,0 +1,47 @@
+name: Build macOS DMG
+
+# Baut JOPML.dmg auf einem macOS-Runner (Apple Silicon). Läuft bei Änderung dieser Datei oder manuell.
+# Ergebnis: Artifact "JOPML-macos" (Actions-Lauf) und, falls das Release v<APP_VERSION> existiert, als Release-Datei.
+# Die App ist nicht von Apple signiert/notarisiert (ad-hoc signiert): beim ersten Start Rechtsklick -> Öffnen.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/build-macos.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - name: Pakete
+        run: python -m pip install -r requirements.txt pyinstaller
+      - name: Tk prüfen
+        run: python -c "import tkinter; print('Tk', tkinter.TkVersion)"
+      - name: Icon (.icns)
+        run: |
+          python tools/make_icon.py
+          python -c "from PIL import Image; Image.open('build/icon.png').convert('RGBA').resize((1024,1024)).save('build/icon.icns')"
+      - name: App bauen
+        run: >
+          pyinstaller --noconfirm --clean --windowed --name JOPML --icon build/icon.icns
+          --osx-bundle-identifier de.jopml.launcher
+          --collect-all customtkinter --collect-submodules modules --collect-submodules core --collect-submodules pynput main.py
+      - name: Ad-hoc signieren und DMG erzeugen
+        run: |
+          codesign --force --deep -s - dist/JOPML.app
+          mkdir -p dmgroot && cp -R dist/JOPML.app dmgroot/ && ln -s /Applications dmgroot/Applications
+          hdiutil create -volname "JOPML" -srcfolder dmgroot -ov -format UDZO JOPML.dmg
+          ls -la JOPML.dmg
+      - uses: actions/upload-artifact@v4
+        with: { name: JOPML-macos, path: JOPML.dmg }
+      - name: An Release anhängen (falls vorhanden)
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          V=$(python -c 'from core.version import APP_VERSION; print(APP_VERSION)')
+          gh release upload "v$V" JOPML.dmg --clobber || echo "Release v$V nicht gefunden – DMG nur als Artifact."
