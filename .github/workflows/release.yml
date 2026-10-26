@@ -122,13 +122,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 2 }
-      - name: Wurde die Version geändert?
+      - name: Gibt es für diese Version schon ein Release?
         id: changed
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || git diff --name-only HEAD~1 HEAD | grep -q '^core/version.py$'; then
-            echo "yes=true" >> "$GITHUB_OUTPUT"
-          else
+          TAG="v${{ needs.build-windows.outputs.version }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG existiert bereits."
             echo "yes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=true" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.changed.outputs.yes == 'true'
         uses: actions/download-artifact@v4
