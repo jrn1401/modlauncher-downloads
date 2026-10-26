@@ -388,4 +388,6 @@ T = {
     '{u}  ·  {w}': '{u}  ·  {w}',
     '… Start delay': '… Retardo de inicio',
     '● Running': '● En ejecución',
+    'I have read and accept the terms of use and disclaimer.': 'He leído y acepto las condiciones de uso y el descargo de responsabilidad.',
+    'Please accept the terms of use first.': 'Acepta primero las condiciones de uso.',
 }

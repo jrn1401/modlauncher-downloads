@@ -6,6 +6,7 @@ import customtkinter as ctk
 
 from core import accounts, i18n, theme
 from core.identity import REMEMBER_CHOICES
+from core.legal_text import legal_text
 from core.version import APP_NAME
 
 
@@ -46,6 +47,12 @@ class LoginView(ctk.CTkFrame):
             self.body.destroy()
         b = self.body = ctk.CTkFrame(self.card, fg_color="transparent")
         b.pack(padx=40, pady=30)
+        top = ctk.CTkFrame(b, fg_color="transparent")
+        top.pack(fill="x")
+        ctk.CTkLabel(top, text="🌐 " + tr("Language"), text_color=theme.MUTED).pack(side="left")
+        self.o_lang = ctk.CTkOptionMenu(top, values=list(i18n.LANGS.values()), width=150, command=self._lang)
+        self.o_lang.set(i18n.LANGS[i18n.get_language()])
+        self.o_lang.pack(side="right")
         ctk.CTkLabel(b, text=APP_NAME, font=ctk.CTkFont(size=26, weight="bold")).pack()
         ctk.CTkLabel(b, text=tr("Sign in to continue") if self.mode == "login" else tr("Create your JOPMakro account"),
                      text_color=theme.MUTED).pack(pady=(0, 14))
@@ -63,6 +70,12 @@ class LoginView(ctk.CTkFrame):
             ctk.CTkLabel(b, text="🔒 " + tr("The password cannot be changed after the account has been created. "
                                              "There is no recovery – keep it safe."),
                          text_color="#f59e0b", wraplength=320, justify="left").pack(pady=(2, 6))
+        self.accept = tk.BooleanVar(value=False)
+        if self.mode == "register":
+            ctk.CTkCheckBox(b, text=tr("I have read and accept the terms of use and disclaimer."), variable=self.accept,
+                            width=320).pack(anchor="w", pady=(4, 0))
+            ctk.CTkButton(b, text=tr("Read the terms again"), width=190, height=24, fg_color="transparent",
+                          text_color=theme.accent(), hover_color=theme.c("hover"), command=self._terms).pack(anchor="w")
         self.e_code = None
         self.code_frame = ctk.CTkFrame(b, fg_color="transparent")
         self.code_frame.pack()
@@ -96,6 +109,23 @@ class LoginView(ctk.CTkFrame):
         e.pack(pady=4)
         return e
 
+    def _lang(self, name):
+        code = next((c for c, n in i18n.LANGS.items() if n == name), "en")
+        i18n.set_language(code)
+        self.app.settings["language"] = code
+        self.app.save_settings()
+        self.app.show_login()
+
+    def _terms(self):
+        top = ctk.CTkToplevel(self)
+        top.title(tr("Terms of use and disclaimer"))
+        top.geometry("820x640")
+        box = ctk.CTkTextbox(top, font=ctk.CTkFont(family="Consolas", size=12), wrap="word")
+        box.pack(fill="both", expand=True, padx=12, pady=12)
+        box.insert("1.0", legal_text(i18n.get_language()))
+        box.configure(state="disabled")
+        top.after(80, top.lift)
+
     def _switch(self, label):
         self.mode = "login" if label == tr("Sign in") else "register"
         self._build()
@@ -119,6 +149,9 @@ class LoginView(ctk.CTkFrame):
         if self.mode == "register":
             if pw != self.e_pw2.get():
                 self._say(tr("The passwords do not match."))
+                return
+            if not self.accept.get():
+                self._say(tr("Please accept the terms of use first."))
                 return
             args = (user, self.e_display.get(), self.e_mail.get(), pw)
             work = lambda: self.ident.register(*args)
@@ -157,6 +190,9 @@ class LoginView(ctk.CTkFrame):
     def google(self):
         if self._cancel is not None:                 # zweiter Klick = abbrechen
             self._cancel.set()
+            return
+        if self.mode == "register" and not self.accept.get():
+            self._say(tr("Please accept the terms of use first."))
             return
         days = remember_value(self.o_remember.get())
         self._cancel = threading.Event()

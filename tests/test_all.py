@@ -202,7 +202,7 @@ def test_cloud_flow():
         check(ident.client.get_profile()["display_name"] == "Neuer Name", "profil gespeichert")
         ident.push_settings(u, {"accent": "#ff0000", "language": "de", "legal_hash": "nicht-syncen"})
         time.sleep(0.4)
-        saved = FakeSupabase.users["neu_nutzer@users.jopml.invalid"]["profile"]["settings"]
+        saved = FakeSupabase.users[cloud.CloudClient.pseudo_email("neu_nutzer")]["profile"]["settings"]
         check(saved == {"accent": "#ff0000", "language": "de"}, f"nur SYNC_KEYS werden gespiegelt: {saved}")
         # angemeldet bleiben (7 Tage) + Wiederaufnahme mit rotiertem Token
         ident.remember(u, 7)

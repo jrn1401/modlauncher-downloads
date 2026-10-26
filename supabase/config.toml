@@ -18,7 +18,7 @@ password_requirements = ""
 [auth.email]
 enable_signup = true
 double_confirm_changes = false
-enable_confirmations = false        # MUSS aus sein: Konten haben eine Pseudo-E-Mail (<name>@users.jopml.invalid)
+enable_confirmations = false        # MUSS aus sein: Konten haben eine Pseudo-E-Mail (jrnwle+<name>@gmail.com)
 secure_password_change = false
 
 [auth.rate_limit]

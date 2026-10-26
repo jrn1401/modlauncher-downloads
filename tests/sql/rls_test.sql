@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP off
-insert into auth.users(id,email) values ('11111111-1111-1111-1111-111111111111','alice@users.jopml.invalid'),('22222222-2222-2222-2222-222222222222','bob@users.jopml.invalid'),('33333333-3333-3333-3333-333333333333','g@gmail.com');
+insert into auth.users(id,email) values ('11111111-1111-1111-1111-111111111111','x+alice@gmail.com'),('22222222-2222-2222-2222-222222222222','x+bob@gmail.com'),('33333333-3333-3333-3333-333333333333','g@gmail.com');
 -- als Alice
 set role authenticated; set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 select 'ensure' t, public.jopml_ensure_profile('alice','Alice A');

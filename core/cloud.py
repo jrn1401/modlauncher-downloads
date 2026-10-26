@@ -16,7 +16,7 @@ import urllib.request
 
 from core import oauth_loopback
 from core import net
-from core.version import (AI_FUNCTION, APP_ID, APP_VERSION, OAUTH_LOOPBACK_PORT, PSEUDO_EMAIL_DOMAIN,
+from core.version import (AI_FUNCTION, APP_ID, APP_VERSION, OAUTH_LOOPBACK_PORT, PSEUDO_EMAIL_TEMPLATE,
                           SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL)
 
 
@@ -111,7 +111,7 @@ class CloudClient:
     # ---------- Anmelden / Registrieren ----------
     @staticmethod
     def pseudo_email(username: str) -> str:
-        return f"{username.strip().lower()}@{PSEUDO_EMAIL_DOMAIN}"
+        return PSEUDO_EMAIL_TEMPLATE.format(u=username.strip().lower())
 
     def sign_up(self, username: str, password: str) -> dict:
         data = self._request("POST", "/auth/v1/signup", {"email": self.pseudo_email(username), "password": password})

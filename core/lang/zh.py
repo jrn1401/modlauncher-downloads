@@ -388,4 +388,6 @@ T = {
     '{u}  ·  {w}': '{u}  ·  {w}',
     '… Start delay': '… 启动延迟',
     '● Running': '● 运行中',
+    'I have read and accept the terms of use and disclaimer.': '我已阅读并接受使用条款和免责声明。',
+    'Please accept the terms of use first.': '请先接受使用条款。',
 }

@@ -1,6 +1,6 @@
 APP_NAME = "Jaron's OP Makro"      # Anzeigename (Fenstertitel, Seitenleiste)
 APP_ID = "JaronsOPMakro"           # Dateiname der EXE und Ordnername für Einstellungen (ohne Sonderzeichen)
-APP_VERSION = "1.1.1"              # bei jedem Update erhöhen (löst den automatischen Build aus)
+APP_VERSION = "1.1.2"              # bei jedem Update erhöhen (löst den automatischen Build aus)
 SHORT_NAME = "JOPML"               # Kürzel, das im App-Icon immer sichtbar bleibt
 
 # Hier liegt die version.json (GitHub-Release "latest")
@@ -19,7 +19,10 @@ GOOGLE_CLIENT_ID = "473834634054-ipmvjinmo40ik00jf9trspvqniugi8q8.apps.googleuse
 # für Clients gedacht und öffentlich, die Sicherheit kommt von den RLS-Regeln in supabase/migrations).
 SUPABASE_URL = "https://blerllyyxryqcjvcqvdw.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_zSZT7Ir_PFjTdzPZc99A0Q_DcVordOo"   # öffentlich, kein Geheimnis
-PSEUDO_EMAIL_DOMAIN = "users.jopml.invalid"   # Supabase Auth braucht eine E-Mail; es wird nie eine Mail dahin gesendet
+# Supabase Auth verlangt eine ZUSTELLBARE E-Mail-Adresse (".invalid"-Adressen werden abgelehnt). Jedes Konto bekommt deshalb
+# eine interne Adresse nach diesem Muster ("+name" landet im Postfach des Betreibers; die Nutzer sehen sie nie).
+# Bestätigungsmails sind aus, es wird also nichts versendet. {u} = Benutzername.
+PSEUDO_EMAIL_TEMPLATE = "jrnwle+{u}@gmail.com"
 OAUTH_LOOPBACK_PORT = 53682        # lokaler Rückkehr-Port der Google-Anmeldung (in Supabase als Redirect erlauben)
 AI_FUNCTION = "jopml-ai"           # Name der Supabase Edge Function mit dem KI-Zugang (Gemini)
 
