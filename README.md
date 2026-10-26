@@ -41,13 +41,9 @@ Im Repository liegt `.github/workflows/release.yml`. Es baut die `JaronsOPMakro.
 
 1. In `core/version.py` die Zahl bei `APP_VERSION` erhöhen (z. B. `1.0.1`).
 2. Optional: Neuigkeiten in `RELEASE_NOTES.txt` schreiben.
-3. Änderungen hochladen und einen Tag setzen, der zur Version passt:
-   ```bash
-   git add -A && git commit -m "Version 1.0.1" && git push
-   git tag v1.0.1 && git push origin v1.0.1
-   ```
-4. GitHub baut und veröffentlicht `JaronsOPMakro.exe` und `version.json` als Release. Ein paar Minuten später
-   sehen alle Nutzer beim Start den Update-Dialog.
+3. Beide Dateien auf `main` hochladen (per `git push` oder auf github.com über *Add file → Upload files*).
+4. GitHub baut automatisch (Reiter *Actions*, dauert einige Minuten) und veröffentlicht `JaronsOPMakro.exe` und
+   `version.json` als Release `v<Version>`. Danach sehen alle Nutzer beim Start den Update-Dialog.
 
 Manuell ohne GitHub-Build: `EXE_BAUEN.bat`, dann `RELEASE.bat`, dann beide Dateien aus `dist` an ein Release hängen.
 

@@ -1,9 +1,11 @@
 name: Build and release
 
-# Startet, wenn ein Tag wie v1.0.1 hochgeladen wird (oder manuell zum Testen).
+# Läuft automatisch, wenn core/version.py auf main geändert wird (also bei jeder neuen Version),
+# oder manuell über "Run workflow". Legt das Release "v<APP_VERSION>" an, falls es noch nicht existiert.
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths: ["core/version.py"]
   workflow_dispatch:
 
 permissions:
@@ -25,14 +27,6 @@ jobs:
       - name: Version aus dem Code lesen
         id: ver
         run: echo "version=$(python -c 'from core.version import APP_VERSION; print(APP_VERSION)')" >> "$GITHUB_OUTPUT"
-
-      - name: Tag und APP_VERSION müssen übereinstimmen
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          if [ "v${{ steps.ver.outputs.version }}" != "${GITHUB_REF_NAME}" ]; then
-            echo "Tag ${GITHUB_REF_NAME} passt nicht zu APP_VERSION ${{ steps.ver.outputs.version }} in core/version.py"
-            exit 1
-          fi
 
       - name: Pakete installieren
         run: python -m pip install -r requirements.txt pyinstaller
@@ -57,10 +51,13 @@ jobs:
             dist/version.json
 
       - name: Release veröffentlichen
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" dist/JaronsOPMakro.exe dist/version.json \
-            --title "Version ${{ steps.ver.outputs.version }}" \
-            --notes "Automatisch gebaut. Download: JaronsOPMakro.exe"
+          TAG="v${{ steps.ver.outputs.version }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG existiert schon. Bitte APP_VERSION in core/version.py erhöhen. EXE nur als Artefakt gespeichert."
+            exit 0
+          fi
+          gh release create "$TAG" dist/JaronsOPMakro.exe dist/version.json \
+            --target "${GITHUB_SHA}" --title "Version ${{ steps.ver.outputs.version }}" --notes-file RELEASE_NOTES.txt

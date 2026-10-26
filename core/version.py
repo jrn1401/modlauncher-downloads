@@ -1,6 +1,6 @@
 APP_NAME = "Jaron's OP Makro"      # Anzeigename (Fenstertitel, Seitenleiste)
 APP_ID = "JaronsOPMakro"           # Dateiname der EXE und Ordnername für Einstellungen (ohne Sonderzeichen)
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.0"                # bei jedem Update erhöhen (löst den automatischen Build aus)
 
 # Hier liegt die version.json (GitHub-Release "latest")
 UPDATE_MANIFEST_URL = "https://github.com/jrn1401/modlauncher-downloads/releases/latest/download/version.json"
