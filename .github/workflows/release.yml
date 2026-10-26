@@ -70,10 +70,14 @@ jobs:
           pyinstaller --noconfirm --clean --noconsole --onefile --name JaronsOPMakro --icon build/icon.ico
           --collect-all customtkinter --collect-submodules modules --collect-submodules core --collect-submodules pynput main.py
 
-      - name: Smoke-Test der EXE (startet kurz und beendet sich)
+      - name: Selbsttest der gebauten EXE (lädt alle Module, prüft Zertifikate)
         run: |
           ls -la dist
           test -s dist/JaronsOPMakro.exe
+          ./dist/JaronsOPMakro.exe --selftest "$PWD/selftest.txt" &
+          for i in $(seq 1 60); do [ -s selftest.txt ] && break; sleep 1; done
+          cat selftest.txt
+          ! grep -q '^FAIL' selftest.txt
 
       - name: version.json erzeugen
         run: |

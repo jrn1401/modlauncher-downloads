@@ -463,6 +463,22 @@ def test_dsl_translations_dont_crash():
 
 
 # ---------------------------------------------------------------- GUI-Smoke (Attrappen)
+def _local_only(fn):
+    """Die Oberflächen-Tests laufen ohne Netzwerk: Cloud-Konfiguration aus version.py abschalten."""
+    def wrapper():
+        import types
+        from core import identity as ident
+        orig = ident.CloudClient
+        ident.CloudClient = lambda: types.SimpleNamespace(configured=False)
+        try:
+            fn()
+        finally:
+            ident.CloudClient = orig
+    wrapper.__name__ = fn.__name__
+    return wrapper
+
+
+@_local_only
 def test_gui_smoke():
     from core import app as app_mod, config
     s = config.load_settings()

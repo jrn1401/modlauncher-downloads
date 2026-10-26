@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [".github/workflows/build-macos.yml"]
+    paths: [".github/workflows/build-macos.yml", "core/version.py"]
 
 permissions:
   contents: write
@@ -32,6 +32,11 @@ jobs:
           pyinstaller --noconfirm --clean --windowed --name JOPML --icon build/icon.icns
           --osx-bundle-identifier de.jopml.launcher
           --collect-all customtkinter --collect-submodules modules --collect-submodules core --collect-submodules pynput main.py
+      - name: Selbsttest der gebauten App (lädt alle Module)
+        run: |
+          dist/JOPML.app/Contents/MacOS/JOPML --selftest "$PWD/selftest.txt" || true
+          cat selftest.txt
+          ! grep -q '^FAIL' selftest.txt
       - name: Ad-hoc signieren und DMG erzeugen
         run: |
           codesign --force --deep -s - dist/JOPML.app
@@ -40,8 +45,24 @@ jobs:
           ls -la JOPML.dmg
       - uses: actions/upload-artifact@v4
         with: { name: JOPML-macos, path: JOPML.dmg }
-      - name: An Release anhängen (falls vorhanden)
+      - name: An Release anhängen und version.json um macOS ergänzen
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           V=$(python -c 'from core.version import APP_VERSION; print(APP_VERSION)')
-          gh release upload "v$V" JOPML.dmg --clobber || echo "Release v$V nicht gefunden – DMG nur als Artifact."
+          # Auf das Windows-Release warten (bis zu 30 Minuten), damit version.json existiert.
+          for i in $(seq 1 90); do
+            gh release view "v$V" >/dev/null 2>&1 && gh release view "v$V" --json assets --jq '.assets[].name' | grep -q '^version.json$' && break
+            sleep 20
+          done
+          if ! gh release view "v$V" >/dev/null 2>&1; then echo "Release v$V nicht gefunden – DMG nur als Artifact."; exit 0; fi
+          gh release upload "v$V" JOPML.dmg --clobber
+          SHA=$(shasum -a 256 JOPML.dmg | cut -d' ' -f1)
+          gh release download "v$V" -p version.json -O version.json --clobber
+          python - "$SHA" "$GITHUB_REPOSITORY" <<'PY'
+          import json, sys
+          sha, repo = sys.argv[1], sys.argv[2]
+          d = json.load(open("version.json", encoding="utf-8"))
+          d.setdefault("packages", {})["macos"] = {"url": f"https://github.com/{repo}/releases/latest/download/JOPML.dmg", "sha256": sha}
+          json.dump(d, open("version.json", "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+          PY
+          gh release upload "v$V" version.json --clobber

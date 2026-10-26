@@ -33,7 +33,31 @@ def _report_crash(text: str) -> None:
         pass
 
 
+def _selftest(out: str) -> int:
+    """Lädt alle Module und Kernteile und schreibt das Ergebnis in eine Datei (für CI und Fehlersuche)."""
+    import importlib
+    lines, bad = [], 0
+    names = ["pynput.keyboard", "pynput.mouse", "customtkinter", "PIL.Image", "core.cloud", "core.oauth_loopback",
+             "core.identity", "core.updater", "core.shortcuts", "core.appicon", "core.legal_text"]
+    import modules
+    from core import plugin_manager
+    names += [f"modules.{n}.plugin" for n in plugin_manager._module_names()]
+    for n in names:
+        try:
+            importlib.import_module(n)
+            lines.append(f"ok    {n}")
+        except BaseException:
+            bad += 1
+            lines.append(f"FAIL  {n}\n{traceback.format_exc()}")
+    from core.version import APP_VERSION
+    lines.append(f"version {APP_VERSION} platform {sys.platform} frozen {getattr(sys, 'frozen', False)}")
+    Path(out).write_text("\n".join(lines), encoding="utf-8")
+    return 1 if bad else 0
+
+
 if __name__ == "__main__":
+    if len(sys.argv) >= 3 and sys.argv[1] == "--selftest":
+        sys.exit(_selftest(sys.argv[2]))
     try:
         from core.app import LauncherApp
         LauncherApp().mainloop()

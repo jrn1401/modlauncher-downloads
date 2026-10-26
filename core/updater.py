@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from core.i18n import tr
+from core import net
 from core.version import APP_ID, APP_VERSION, UPDATE_MANIFEST_URL
 
 FROZEN = getattr(sys, "frozen", False)
@@ -63,7 +64,7 @@ def platform_key() -> str:
 
 def _open(url: str, timeout: float = 10):
     req = urllib.request.Request(url, headers={"User-Agent": f"{APP_ID}/{APP_VERSION}"})
-    return urllib.request.urlopen(req, timeout=timeout)
+    return net.urlopen(req, timeout=timeout)
 
 
 def check() -> UpdateInfo | None:
@@ -147,6 +148,12 @@ def apply(path: Path) -> bool:
     if key == "windows":
         _apply_windows_exe(path)
         return True
-    # macOS / Linux: Datei im Dateimanager öffnen, Nutzer ersetzt sie manuell
-    webbrowser.open(path.parent.as_uri())
+    # macOS / Linux: Datei öffnen (macOS: DMG wird eingebunden), Nutzer ersetzt die App manuell
+    try:
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", str(path)])
+        else:
+            webbrowser.open(path.parent.as_uri())
+    except Exception:
+        webbrowser.open(path.parent.as_uri())
     return False

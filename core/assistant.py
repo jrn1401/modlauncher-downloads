@@ -10,6 +10,7 @@ import urllib.parse
 import urllib.request
 
 from core import ai_client
+from core import net
 from core.i18n import tr
 from core.version import APP_ID, APP_VERSION
 
@@ -99,7 +100,7 @@ def ask_remote(url: str, history: list[dict], timeout: float = 30) -> str:
                "messages": [{"role": m["role"], "content": m["content"][:1000]} for m in history[-10:]]}
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"),
                                  headers={"Content-Type": "application/json", "User-Agent": f"{APP_ID}/{APP_VERSION}"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with net.urlopen(req, timeout=timeout) as resp:
         data = json.loads(resp.read(200_000).decode("utf-8"))
     reply = data.get("reply") if isinstance(data, dict) else None
     if not isinstance(reply, str) or not reply.strip():

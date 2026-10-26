@@ -11,6 +11,7 @@ import tkinter
 import customtkinter as ctk
 
 from core import accounts, theme
+from core import net
 from core.i18n import tr
 from core.version import APP_ID, APP_VERSION, CONTACT_ENDPOINT, FEEDBACK_EMAIL
 
@@ -43,7 +44,7 @@ def post_endpoint(url: str, payload: dict, timeout: float = 20) -> None:
         raise ValueError("The form address must start with https://")
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"),
                                  headers={"Content-Type": "application/json", "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with net.urlopen(req, timeout=timeout) as resp:
         if not 200 <= resp.status < 300:
             raise OSError(f"Server answered with {resp.status}")
 

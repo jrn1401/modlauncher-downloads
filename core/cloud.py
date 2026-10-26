@@ -15,6 +15,7 @@ import urllib.parse
 import urllib.request
 
 from core import oauth_loopback
+from core import net
 from core.version import (AI_FUNCTION, APP_ID, APP_VERSION, OAUTH_LOOPBACK_PORT, PSEUDO_EMAIL_DOMAIN,
                           SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL)
 
@@ -45,7 +46,7 @@ class CloudClient:
         data = json.dumps(body).encode("utf-8") if body is not None else None
         req = urllib.request.Request(self.url + path, data=data, method=method, headers=headers)
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with net.urlopen(req, timeout=timeout) as resp:
                 raw = resp.read(2_000_000).decode("utf-8")
         except urllib.error.HTTPError as exc:
             try:
