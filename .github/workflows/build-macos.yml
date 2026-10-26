@@ -35,8 +35,12 @@ jobs:
       - name: Selbsttest der gebauten App (lädt alle Module)
         run: |
           dist/JOPML.app/Contents/MacOS/JOPML --selftest "$PWD/selftest.txt" || true
-          cat selftest.txt
-          ! grep -q '^FAIL' selftest.txt
+          if [ -s selftest.txt ]; then
+            R=$(head -c 3000 selftest.txt | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          else
+            R="selftest.txt wurde nicht erzeugt"
+          fi
+          if ! grep -q '^FAIL' selftest.txt 2>/dev/null && [ -s selftest.txt ]; then echo "::notice title=Selftest ok::$R"; else echo "::error title=Selftest::$R"; exit 1; fi
       - name: Ad-hoc signieren und DMG erzeugen
         run: |
           codesign --force --deep -s - dist/JOPML.app

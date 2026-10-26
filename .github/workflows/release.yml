@@ -76,8 +76,13 @@ jobs:
           test -s dist/JaronsOPMakro.exe
           ./dist/JaronsOPMakro.exe --selftest "$PWD/selftest.txt" &
           for i in $(seq 1 60); do [ -s selftest.txt ] && break; sleep 1; done
-          cat selftest.txt
-          ! grep -q '^FAIL' selftest.txt
+          if [ -s selftest.txt ]; then
+            R=$(head -c 3000 selftest.txt | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')
+          else
+            R="selftest.txt wurde nicht erzeugt (EXE startet nicht?)"
+            [ -f "$APPDATA/JaronsOPMakro/crash.log" ] && R="$R%0A$(head -c 2500 "$APPDATA/JaronsOPMakro/crash.log" | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"
+          fi
+          if ! grep -q '^FAIL' selftest.txt 2>/dev/null && [ -s selftest.txt ]; then echo "::notice title=Selftest ok::$R"; else echo "::error title=Selftest::$R"; exit 1; fi
 
       - name: version.json erzeugen
         run: |
