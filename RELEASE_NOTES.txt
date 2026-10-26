@@ -1,1 +1,1 @@
-Version 1.0.0: Konten mit Anmeldung (Google/2FA), Einstellungen, Design, Hilfe-Assistent, Kontaktformular und das Modul "Jaron Op Makro".
+Version 1.1.0: Erststart mit Sprachwahl (EN/DE/ES/RU/FR/ZH) und Rechtstext-Zustimmung, JOPMakro-Konto mit optionaler E-Mail und "angemeldet bleiben", Google-Login über Supabase, verschlüsselte Cloud-Profile, Makro-Editor mit KI-Erzeugung (Gemini), Browsing/Extensions, Recoil-Modul (nur Offline-Spiele), Theme-Manager mit Farbwähler, Icon-Wechsler, Desktop-Verknüpfung/Autostart, Credits & Quellen.

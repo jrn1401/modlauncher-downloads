@@ -1,8 +1,0 @@
-__pycache__/
-*.pyc
-.venv/
-.venv-build/
-build/
-dist/
-*.spec
-release_config.json

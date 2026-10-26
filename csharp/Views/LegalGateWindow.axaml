@@ -1,0 +1,17 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="JOPML.Views.LegalGateWindow" Title="JOPML – Nutzungsbedingungen / Terms"
+        Width="760" Height="640" CanResize="False" WindowStartupLocation="CenterScreen" Topmost="True"
+        ShowInTaskbar="True" Background="#14161c">
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="20">
+    <TextBlock Grid.Row="0" Text="Rechtliche Hinweise &amp; Haftungsausschluss" FontSize="22" FontWeight="Bold" Foreground="White"/>
+    <!-- FontSize="10" wie gefordert. Hinweis: sehr kleine Schrift schadet der Transparenz (AGB-Recht); deshalb Lupe/Zoom vorsehen. -->
+    <TextBox Grid.Row="1" x:Name="LegalBox" IsReadOnly="True" TextWrapping="Wrap" FontSize="10"
+             AcceptsReturn="True" FontFamily="Consolas, monospace" Margin="0,12" ScrollViewer.ScrollChanged="OnScrolled"/>
+    <CheckBox Grid.Row="2" x:Name="AgreeBox" IsEnabled="False" Checked="OnChecked" Unchecked="OnChecked"
+              Content="Ich habe alles gelesen und stimme verbindlich zu / I have read and agree." Foreground="White"/>
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,12,0,0">
+      <Button x:Name="DeclineBtn" Content="Ablehnen / Decline" Click="OnDecline"/>
+      <Button x:Name="AcceptBtn" Content="Akzeptieren / Accept" IsEnabled="False" Click="OnAccept"/>
+    </StackPanel>
+  </Grid>
+</Window>

@@ -1,0 +1,46 @@
+name: Deploy to Supabase
+
+# Verbindet das Repository mit Supabase: bei Änderungen unter supabase/ werden Datenbank-Migrationen,
+# Auth-Konfiguration (Google-Login) und die KI-Edge-Function ausgerollt.
+# Einmalig als Repository-Secrets eintragen (Settings -> Secrets and variables -> Actions):
+#   SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF, SUPABASE_DB_PASSWORD,
+#   SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET (Client-Secret des Google-OAuth-Clients "Webanwendung"),
+#   GEMINI_API_KEY (aus Google AI Studio)
+# Fehlen die Secrets, überspringt der Workflow alles – er schlägt dann nicht fehl.
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/**"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET: ${{ secrets.SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Secrets vorhanden?
+        id: chk
+        run: |
+          if [ -n "$SUPABASE_ACCESS_TOKEN" ] && [ -n "$PROJECT_REF" ] && [ -n "$SUPABASE_DB_PASSWORD" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; echo "Supabase-Secrets fehlen – nichts zu tun."; fi
+      - if: steps.chk.outputs.ok == 'true'
+        uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - if: steps.chk.outputs.ok == 'true'
+        run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+      - name: Datenbank-Migrationen
+        if: steps.chk.outputs.ok == 'true'
+        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+      - name: Auth-Konfiguration (Google, E-Mail-Bestätigung aus)
+        if: steps.chk.outputs.ok == 'true' && env.SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET != ''
+        run: supabase config push --yes
+      - name: KI-Edge-Function
+        if: steps.chk.outputs.ok == 'true'
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then supabase secrets set GEMINI_API_KEY="$GEMINI_API_KEY" --project-ref "$PROJECT_REF"; fi
+          supabase functions deploy jopml-ai --project-ref "$PROJECT_REF"

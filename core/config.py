@@ -15,6 +15,18 @@ DEFAULT_SETTINGS = {
     "ram_limit_mb": 0,             # 0 = kein Limit (nur Windows)
     "assistant_url": "",
     "contact_endpoint": "",
+    # --- v1.1 ---
+    "language": "en",              # en | de | es | ru | fr | zh
+    "colors": {},                  # eigene Farben: main, sidebar, card, inset, hover, text
+    "icon_bg": "#4f8cff",          # Hintergrundfarbe des App-Icons
+    "icon_image": "",              # optionales Hintergrundbild des App-Icons
+    "remember": "30",              # Standard für "Angemeldet bleiben": 0 | 1 | 7 | 30 | forever
+    "first_run_done": False,       # Sprache/Verknüpfung/Autostart-Angebot gezeigt
+    "legal_version": "",           # Fassung der Bedingungen, der zugestimmt wurde
+    "legal_hash": "",
+    "legal_accepted_at": 0,
+    "recoil_ack": False,           # Warnhinweis im Recoil-Modul bestätigt
+    "extensions": {},              # {id: {"enabled": bool, "config": {...}}}
 }
 
 

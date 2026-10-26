@@ -8,7 +8,9 @@ import threading
 
 from pynput import keyboard, mouse
 
-MOUSE_BUTTONS = {"left": "Linke Maustaste", "right": "Rechte Maustaste", "middle": "Mittlere Maustaste"}
+from core.i18n import tr
+
+MOUSE_BUTTONS = {"left": "Left mouse button", "right": "Right mouse button", "middle": "Middle mouse button"}
 MODIFIERS = {"ctrl", "alt", "shift", "cmd"}
 COMMON_KEYS = (
     [chr(c) for c in range(ord("a"), ord("z") + 1)]
@@ -23,24 +25,24 @@ def resolve_key(name: str):
     """'e' -> KeyCode, 'space' -> Key.space. Wirft ValueError bei unbekannten Namen."""
     name = name.strip()
     if not name:
-        raise ValueError("Keine Taste gewählt")
+        raise ValueError(tr("No key selected"))
     if len(name) == 1:
         return keyboard.KeyCode.from_char(name)
     try:
         return keyboard.Key[name.lower()]
     except KeyError:
-        raise ValueError(f"Unbekannte Taste: '{name}'") from None
+        raise ValueError(tr("Unknown key: {t}", t=name)) from None
 
 
 def validate_target(spec: str) -> None:
     kind, _, name = spec.partition(":")
     if kind == "mouse":
         if name not in MOUSE_BUTTONS:
-            raise ValueError(f"Unbekannte Maustaste: {name}")
+            raise ValueError(tr("Unknown mouse button: {t}", t=name))
     elif kind == "key":
         resolve_key(name)
     else:
-        raise ValueError(f"Ungültiges Ziel: {spec}")
+        raise ValueError(tr("Invalid target: {t}", t=spec))
 
 
 def make_action(spec: str):
@@ -58,7 +60,7 @@ def validate_hotkey(hk: str) -> None:
     try:
         keyboard.HotKey.parse(hk)
     except Exception as exc:
-        raise ValueError(f"Ungültiger Hotkey '{hk}': {exc}") from None
+        raise ValueError(tr("Invalid hotkey '{hk}': {e}", hk=hk, e=exc)) from None
 
 
 def pretty_hotkey(hk: str) -> str:

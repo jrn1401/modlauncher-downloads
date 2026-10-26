@@ -8,6 +8,8 @@ import ctypes
 import os
 import sys
 
+from core.i18n import tr
+
 IS_WIN = sys.platform.startswith("win")
 MIN_RAM_MB = 512
 _job = None
@@ -143,8 +145,8 @@ def apply(priority: str = "normal", cores: int = 0, ram_mb: int = 0) -> list[str
         else:
             os.setpriority(os.PRIO_PROCESS, 0, 10 if low else 0)
     except Exception:
-        notes.append("Normale Priorität kann erst nach einem Neustart wiederhergestellt werden." if not low
-                     else "Die Priorität konnte nicht geändert werden.")
+        notes.append(tr("Normal priority can only be restored after a restart.") if not low
+                     else tr("The priority could not be changed."))
 
     total = cpu_count()
     n = cores if 0 < cores < total else total
@@ -154,23 +156,23 @@ def apply(priority: str = "normal", cores: int = 0, ram_mb: int = 0) -> list[str
         elif hasattr(os, "sched_setaffinity"):
             os.sched_setaffinity(0, set(range(n)))
         elif cores:
-            notes.append("Die Kernbegrenzung wird auf diesem System nicht unterstützt (z. B. macOS).")
+            notes.append(tr("Core limiting is not supported on this system (e.g. macOS)."))
     except Exception:
-        notes.append("Die Kernbegrenzung konnte nicht gesetzt werden.")
+        notes.append(tr("The core limit could not be set."))
 
     if ram_mb:
         if not IS_WIN:
-            notes.append("Das RAM-Limit gibt es nur unter Windows.")
+            notes.append(tr("The RAM limit exists only on Windows."))
         elif ram_mb < MIN_RAM_MB:
-            notes.append(f"RAM-Limit nicht gesetzt: mindestens {MIN_RAM_MB} MB nötig, sonst stürzt das Programm ab.")
+            notes.append(tr("RAM limit not set: at least {n} MB needed, otherwise the program crashes.", n=MIN_RAM_MB))
         else:
             try:
                 _win_memory_limit(ram_mb)
             except Exception as exc:
-                notes.append(f"RAM-Limit konnte nicht gesetzt werden: {exc}")
+                notes.append(tr("The RAM limit could not be set: {e}", e=exc))
     elif IS_WIN and _job is not None:
         try:
             _win_memory_limit(0)
         except Exception:
-            notes.append("Das RAM-Limit konnte nicht aufgehoben werden (Neustart nötig).")
+            notes.append(tr("The RAM limit could not be removed (restart needed)."))
     return notes

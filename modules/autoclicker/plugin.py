@@ -7,6 +7,7 @@ import copy
 import traceback
 from pathlib import Path
 
+from core.i18n import tr
 from core.config import app_dir, load_json, profiles_dir, save_json
 from core.plugin_api import BasePlugin
 
@@ -51,17 +52,17 @@ def build_config(profile: dict) -> EngineConfig:
         timer_val = float(profile["timer_value"])
         delay = float(profile["start_delay"])
     except (TypeError, ValueError):
-        raise ValueError("Zahlenfeld enthält keinen gültigen Wert") from None
+        raise ValueError(tr("A number field contains an invalid value")) from None
     if interval < 0.001:
-        raise ValueError("Intervall muss mindestens 1 ms betragen")
+        raise ValueError(tr("The interval must be at least 1 ms"))
     if min(count, timer_val, delay) < 0:
-        raise ValueError("Negative Werte sind nicht erlaubt")
+        raise ValueError(tr("Negative values are not allowed"))
     if profile["repeat_mode"] == "count" and count < 1:
-        raise ValueError("Wiederholungen müssen mindestens 1 sein")
+        raise ValueError(tr("Repeats must be at least 1"))
     duration = 0.0
     if profile["timer_enabled"]:
         if timer_val <= 0:
-            raise ValueError("Timer muss größer als 0 sein")
+            raise ValueError(tr("The timer must be greater than 0"))
         duration = timer_val * UNIT_SECONDS.get(profile["timer_unit"], 1)
     return EngineConfig(
         action=keys.make_action(profile["target"]),
@@ -76,10 +77,10 @@ class Plugin(BasePlugin):
     id = "autoclicker"
     name = "Jaron Op Makro"
     icon = "◎"
-    version = "1.0.0"
+    version = "1.1.0"
     order = 10
-    description = ("Simuliert beliebige Maus- und Tastaturtasten mit präzisem Intervall, "
-                   "Wiederholungen, Timer und globalen Start/Stop-Hotkeys.")
+    description = ("Simulates any mouse or keyboard key with a precise interval, repeats, timer and "
+                   "global start/stop hotkeys.")
 
     def on_load(self):
         self.engine = ClickEngine()
@@ -115,7 +116,7 @@ class Plugin(BasePlugin):
     def load_profile_file(self, path) -> dict:
         data = load_json(path)
         if not isinstance(data, dict):
-            raise ValueError("Datei ist kein gültiges Profil")
+            raise ValueError(tr("This file is not a valid profile"))
         return merge_profile(data)
 
     # ---- Steuerung ----

@@ -1,0 +1,54 @@
+
+TERMS OF USE, DISCLAIMER AND PRIVACY NOTICE
+for "Jaron's OP Makro Launcher" (JOPML) - version of 26 Oct 2026 - program version 1.1
+(Orientation only. The German text is the authoritative version and is shown in full on request.)
+
+READING NOTE
+(1) Read this text to the end. The checkbox and the "Accept" button unlock only after you have scrolled to the bottom.
+(2) If you decline, the program closes immediately.
+(3) Everything below applies "to the extent permitted by law". Mandatory law is never excluded: liability for intent (Sec. 276 (3) German Civil Code), for injury to life, body or health, under the Product Liability Act, for fraudulently concealed defects, your data-protection rights (GDPR Art. 12-22, Art. 77) and the mandatory consumer law of your country of residence remain untouched.
+
+SECTION 1 - STATUS, PARTIES
+1.1 "Provider" means the natural person(s) who publish the program anonymously, without a company, register entry or published address. The project is, in the provider's own assessment, not a legal entity, not an unincorporated association (Sec. 54 BGB), not a partnership (Sec. 705 BGB) and not a business (Sec. 14 BGB) as long as it is free and non-profit.
+1.2 Contact is possible only through the contact form in the program. There is no entitlement to a reply, support, bug fixes, continuation of the project or availability of any feature.
+1.3 Clarification: natural persons have legal capacity (Sec. 1 BGB) and can be sued (Sec. 50 ZPO). These terms do not claim otherwise; they regulate the extent of liability.
+1.4 The program is provided free of charge, "as is" and "as available". No warranty of any kind is given. Liability follows the standard for gifts/loans (Sec. 521, 599 BGB): intent and gross negligence only, and for defects only if fraudulently concealed (Sec. 523, 524 BGB).
+1.5 The contract is concluded by clicking "Accept". Changed terms receive a new version and require your consent again.
+
+SECTION 2 - HARDWARE, SYSTEM AND DATA
+2.1 The program can generate input events at a very high rate (down to 1 ms), change the priority, CPU-core assignment and (Windows) memory limit of its own process, and - only if you ask for it - create an autostart entry and a desktop shortcut. This may increase load, temperature and power use. Monitor your system and stop at signs of overheating.
+2.2 The program does not use or limit a graphics card. Throttling options affect only the program's own process.
+2.3 Simulated input is treated like real input by other software and may delete, send or buy things. Test every macro in a harmless environment. Use the stop buttons, global hotkeys and failsafe.
+2.4 Back up your data and create restore points. Account deletion is final; there is no password recovery.
+2.5 Liability: only for intent and gross negligence; otherwise excluded to the extent permitted by law; unaffected: intent, injury to life/body/health, Product Liability Act, fraudulently concealed defects, guarantees (none are given). Your own contributory fault counts (Sec. 254 BGB).
+
+SECTION 3 - ACCOUNT BANS AND ANTI-CHEAT
+3.1 Input automation can violate the terms of service (ToS) and EULAs of game publishers. Anti-cheat systems such as Easy Anti-Cheat, Ricochet, Vanguard, BattlEye and Valve Anti-Cheat (and any others) may detect it and issue warnings, temporary or permanent bans or device bans.
+3.2 The program contains no function to hide, disguise or bypass detection. Non-detection is not promised.
+3.3 Those ToS/EULAs bind you, not the provider. The provider is not your vicarious agent (Sec. 278 BGB) and does not encourage any breach.
+3.4 Loss of game accounts, virtual goods, in-game currency, skins, ranks, tournament entries or prizes: no liability, no recourse, to the extent permitted by law. You bear the risk of a ban alone.
+3.5 Strongly recommended: use the program, and especially the "Recoil" module, only in offline games, single-player or test/education environments. You release the provider from third-party claims arising from your unlawful or contract-breaking use, to the extent permitted.
+3.6 The "Recoil" module only generates configurable mouse movement while the left button is held. It reads no game memory or files and can very easily be detected by modern anti-cheat systems.
+3.7 Product names are trademarks of their owners; there is no affiliation or endorsement.
+
+SECTION 4 - PRIVACY
+4.1 You can use the program without an e-mail address, real name or other private data. A "JOPMakro Account" needs only a username and a password; display name and e-mail are optional.
+4.2 Data processed (Art. 5 GDPR - minimisation, purpose limitation, storage limitation, integrity): username, a password hash, an encrypted profile (display name, optional e-mail, settings), technical access data of the services used, and a counter for AI requests. Transport is encrypted (TLS); profile contents are additionally encrypted at field level in the database with row-level security. Absolute security cannot be promised: whoever operates the database and its key has technical access.
+4.3 Art. 11 GDPR: the provider does not aim to identify users. If the provider can show that it cannot identify a person, Art. 15-20 do not apply unless the person supplies additional identifying information (Art. 11 (2)). Requests sent from outside the program that cannot be linked to an account cannot be answered. This does not limit your self-service rights:
+ - Access (Art. 15) and portability (Art. 20): "Export my data" in Settings (JSON).
+ - Erasure (Art. 17): "Delete account" in Settings, immediate and final.
+ - Rectification: display name and e-mail can be edited. The password cannot be changed after creation, for security reasons; if you lose it, create a new account.
+4.4 Recipients: Supabase (hosting, authentication, database), GitHub (updates; your IP address is processed), Google (only if you sign in with Google), Google AI Gemini (only for AI assistant / macro generator requests - never type confidential information there). The ad space is a placeholder; if activated, these terms will be updated and your consent requested separately.
+4.5 Your rights under GDPR Art. 12-22 cannot be waived in advance. They are regulated here, not excluded. You may complain to a supervisory authority (Art. 77).
+
+SECTION 5 - LAW AND COURTS
+German law applies; the UN Sales Convention (CISG) does not apply; mandatory consumer protection of your country of residence stays untouched. No exclusive place of jurisdiction is agreed with consumers. Access to the courts cannot be excluded by contract and is not.
+
+SECTION 6 - CREDITS
+Python (PSF), CustomTkinter (MIT), Tcl/Tk, pynput (LGPL-3.0), Pillow (HPND), PyInstaller (GPL-2.0 with bootloader exception), Microsoft .NET / Windows / Microsoft Store / GitHub / GitHub Actions, Avalonia UI (MIT), Supabase (PostgreSQL, Auth, Edge Functions, Vault), Anthropic Claude (development tooling), Google AI Gemini, Google Sign-In, Google Ads/AdMob SDK (inactive placeholder), Nuitka, Dotfuscator, ILRepack. All names are trademarks of their owners. None of these companies supports, authorises, endorses or is liable for this project. AI output can be wrong; check every generated macro before running it.
+
+SECTION 7 - SEVERABILITY
+If a provision is or becomes invalid, the rest stays valid - separately for every section, paragraph, sentence, number and letter. The invalid part is replaced by the valid provision closest to its purpose; where the law of general terms and conditions requires, the statutory rule applies (Sec. 306 (2) BGB). Even if individual exclusions fail, the others and the liability standard of 2.5 remain; and as a core rule the provider is liable only to the extent mandatory law requires for a free-of-charge provision, and no further. A severability clause cannot cure an invalid clause.
+
+SECTION 8 - NO COPYRIGHT / PUBLIC DOMAIN
+The provider claims no rights in the code and content written by the provider and places them in the public domain as far as legally possible; where that is not possible (e.g. German copyright cannot be waived, Sec. 29 UrhG), everyone receives a broad, free, irrevocable, worldwide licence for any purpose as close to CC0 1.0 as possible. Third-party components keep their own licences. This text is a draft without legal review and is not legal advice. Your consent, its time and the version are stored locally and shown in Settings.

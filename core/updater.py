@@ -32,6 +32,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from core.i18n import tr
 from core.version import APP_ID, APP_VERSION, UPDATE_MANIFEST_URL
 
 FROZEN = getattr(sys, "frozen", False)
@@ -73,7 +74,7 @@ def check() -> UpdateInfo | None:
         return None
     pkg = data.get("packages", {}).get(platform_key())
     if not pkg:
-        raise RuntimeError(f"Kein Update-Paket für '{platform_key()}' in der version.json")
+        raise RuntimeError(tr("No update package for '{p}' in version.json", p=platform_key()))
     return UpdateInfo(data["version"], data.get("notes", ""), pkg["url"], pkg.get("sha256", ""))
 
 
@@ -100,7 +101,7 @@ def download(info: UpdateInfo, progress=None, max_kbps: float = 0) -> Path:
                 progress(done / total)
     if info.sha256 and sha.hexdigest().lower() != info.sha256.lower():
         target.unlink(missing_ok=True)
-        raise RuntimeError("Prüfsumme stimmt nicht – Update abgebrochen.")
+        raise RuntimeError(tr("Checksum mismatch – update cancelled."))
     return target
 
 

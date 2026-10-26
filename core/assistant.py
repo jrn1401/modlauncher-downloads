@@ -1,7 +1,7 @@
-"""Hilfe-Assistent: eingebaute FAQ-Antworten (offline) + optional ein KI-Endpunkt.
+"""Hilfe-Assistent: eingebaute FAQ (offline, mehrsprachig) + KI (Supabase-Funktion -> Gemini) + optionaler eigener Endpunkt.
 
-Der KI-Endpunkt ist eine https-Adresse DEINES Servers (siehe server_examples/assistant_worker.js).
-Dort liegt der API-Schlüssel. Er darf nie im Programm stehen, weil jeder Nutzer ihn auslesen könnte.
+Die Antworten sind englische Quelltexte und werden über tr() in die Sprache des Nutzers übersetzt.
+Stichwörter sind deutsch UND englisch, damit Fragen in beiden Sprachen gefunden werden.
 """
 import json
 import re
@@ -9,63 +9,71 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from core import ai_client
+from core.i18n import tr
 from core.version import APP_ID, APP_VERSION
 
-# (Stichwörter, Antwort). Es gewinnt der Eintrag mit den meisten Treffern.
 FAQ = [
-    (("start", "stop", "hotkey", "f6", "tastenkombination", "global", "hintergrund"),
-     "Start/Stop-Hotkeys stellst du bei „Jaron Op Makro“ unter „Globale Hotkeys“ ein: auf „Aufnehmen“ klicken und die Taste "
-     "oder Kombination (z. B. F6 oder Strg+Alt+P) drücken. Sind Start und Stop gleich, schaltet die Taste um. "
-     "Die Hotkeys funktionieren auch, wenn das Fenster im Hintergrund ist."),
-    (("intervall", "geschwindigkeit", "millisekunden", "schnell", "langsam", "cps", "pause"),
-     "Das Klick-Intervall setzt du aus Minuten, Sekunden und Millisekunden zusammen (Minimum 1 ms). "
-     "Sehr kurze Intervalle hängen von Windows und dem Zielprogramm ab. Manche Programme verarbeiten nicht jeden Klick."),
-    (("taste", "tasten", "buchstabe", "leertaste", "maus", "ziel", "welche"),
-     "Als Ziel kannst du die linke, rechte oder mittlere Maustaste oder jede Tastaturtaste wählen "
-     "(Buchstaben, Ziffern, F-Tasten, Leertaste, Enter ...). Mit „Taste aufnehmen“ drückst du die gewünschte Taste einfach selbst."),
-    (("wiederholen", "wiederholung", "unendlich", "mal", "timer", "laufzeit", "begrenzen"),
-     "Unter „Wiederholungen & Timer“ wählst du „Unendlich“ oder „X-mal“. Mit „Laufzeit begrenzen“ stoppt der Klicker "
-     "nach genau der eingestellten Zeit, z. B. 5 Minuten."),
-    (("profil", "profile", "speichern", "laden", "json", "sichern"),
-     "Profile speicherst und lädst du oben auf der Seite „Jaron Op Makro“ mit „Speichern …“ und „Laden …“. "
-     "Sie sind normale JSON-Dateien, die du auch weitergeben kannst. Der zuletzt benutzte Zustand wird automatisch gemerkt."),
+    (("hotkey", "f6", "tastenkombination", "global", "hintergrund", "background", "shortcut key"),
+     "Set start/stop hotkeys in 'Jaron Op Makro' under 'Global hotkeys': click 'Record' and press the key or combination "
+     "(e.g. F6 or Ctrl+Alt+P). If start and stop are the same, the key toggles. Hotkeys also work when the window is in the background."),
+    (("intervall", "interval", "geschwindigkeit", "speed", "millisekunden", "milliseconds", "schnell", "fast", "cps"),
+     "The click interval is made of minutes, seconds and milliseconds (minimum 1 ms). Very short intervals depend on the "
+     "operating system and the target program. Some programs do not process every click."),
+    (("taste", "key", "buchstabe", "leertaste", "space", "maus", "mouse", "ziel", "target"),
+     "As the target you can choose the left, right or middle mouse button or any keyboard key. With 'Record key' you simply press the key yourself."),
+    (("wiederholen", "repeat", "unendlich", "infinite", "timer", "laufzeit", "run time"),
+     "Under 'Repeats & timer' choose 'Repeat forever' or 'X times'. With 'Limit run time' the clicker stops after exactly the set time."),
+    (("profil", "profile", "speichern", "save", "laden", "load", "json"),
+     "Save and load profiles at the top of 'Jaron Op Makro' with 'Save …' and 'Load …'. They are plain JSON files you can share."),
+    (("makro", "macro", "skript", "script", "ki", "ai", "generieren", "generate", "beschreib", "describe"),
+     "Open 'Add macros'. Write commands such as 'click left 500 300', 'wait 50ms' and 'repeat forever … end', or describe the macro "
+     "in the box on top (e.g. 'click every 50 ms at 500 300') and press 'Generate'. Simple sentences are understood offline; harder ones "
+     "use the AI when you are signed in with a cloud account. Every macro is checked before it runs. F7 starts/stops."),
+    (("extension", "erweiterung", "browser", "browsing", "links", "notiz", "notes", "suche", "search"),
+     "Under 'Browsing / Extensions' add ready-made extensions (Quick links, Web search, Notes) with one click, switch them on or off and configure them there."),
+    (("recoil", "rückstoß", "rueckstoss", "shooter", "anti-recoil", "ruckstoss"),
+     "The 'Recoil' module pulls the mouse down while the left button is held. It can very easily be detected by anti-cheat systems and is meant "
+     "only for offline games for education and testing. You must confirm the warning before it can be switched on. F8 toggles it."),
     (("update", "aktualisieren", "version", "neue version"),
-     "Beim Start wird automatisch nach Updates gesucht. Gibt es eins, erscheint ein Fenster mit „Jetzt aktualisieren“. "
-     "Manuell geht es auf dem Dashboard über „Nach Updates suchen“."),
-    (("smartscreen", "windows geschützt", "blockiert", "virus", "antivirus", "defender", "startet nicht"),
-     "Windows warnt bei unbekannten Programmen: Auf „Weitere Informationen“ klicken, dann „Trotzdem ausführen“. "
-     "Fehlt der Knopf, in den Dateieigenschaften unten „Zulassen“ anhaken. Auto-Clicker werden von manchen Virenscannern "
-     "fälschlich gemeldet. Bei anhaltenden Problemen schreib uns über „Kontakt“."),
-    (("passwort", "kennwort", "ändern", "vergessen", "reset"),
-     "Das Passwort änderst du unter Einstellungen → Konto. Es gibt keinen Server und daher kein „Passwort vergessen“: "
-     "Die Konten liegen nur auf diesem PC. Wenn du es vergisst, kannst du ein neues Konto anlegen."),
-    (("2fa", "zwei", "faktor", "authenticator", "code", "totp"),
-     "Die Zwei-Faktor-Anmeldung aktivierst du unter Einstellungen → Konto → „2FA einrichten“. Den angezeigten Schlüssel "
-     "gibst du in einer Authenticator-App ein (z. B. Google Authenticator, Aegis, Microsoft Authenticator) und bestätigst "
-     "mit dem 6-stelligen Code. Die Uhrzeit des Handys muss stimmen."),
-    (("google", "anmelden mit", "gmail"),
-     "Die Google-Anmeldung braucht eine einmalige Einrichtung durch den Betreiber der App. Ist sie nicht aktiv, "
-     "melde dich mit Benutzername und Passwort an."),
-    (("angemeldet bleiben", "login", "anmelden", "abmelden", "logout", "konto"),
-     "Mit „Angemeldet bleiben“ bleibst du bis zu 30 Tage angemeldet. Abmelden kannst du unten in der Seitenleiste."),
-    (("farbe", "design", "dunkel", "hell", "dark", "light", "akzent", "theme"),
-     "Farbe und Design stellst du unter Einstellungen → Aussehen ein: Dunkel, Hell oder System und eine Akzentfarbe."),
-    (("download", "drosseln", "bandbreite", "internet", "langsam laden"),
-     "Die Download-Geschwindigkeit für Updates kannst du unter Einstellungen → Leistung in KB/s begrenzen (0 = unbegrenzt)."),
-    (("ram", "cpu", "gpu", "prozessor", "arbeitsspeicher", "hardware", "leistung", "kerne", "grafikkarte"),
-     "Unter Einstellungen → Leistung kannst du die Priorität, die Anzahl der CPU-Kerne und (nur Windows) den Arbeitsspeicher "
-     "dieses Programms begrenzen. Das gilt nur für den Launcher selbst. Eine GPU-Begrenzung gibt es nicht, da das Programm die "
-     "Grafikkarte nicht nutzt."),
-    (("kontakt", "feedback", "fehler melden", "bug", "idee", "vorschlag"),
-     "Feedback und Fehlermeldungen schickst du über „Kontakt“ in der Seitenleiste."),
+     "On start the launcher checks for updates automatically. If there is one, a window with 'Update now' appears. You can also check manually on the dashboard."),
+    (("smartscreen", "blockiert", "blocked", "virus", "antivirus", "defender", "startet nicht", "does not start"),
+     "Windows warns about unknown programs: click 'More info', then 'Run anyway'. If the button is missing, tick 'Unblock' in the file properties. "
+     "Some virus scanners wrongly flag auto-clickers."),
+    (("passwort", "password", "kennwort", "ändern", "change", "vergessen", "forgot", "reset"),
+     "A password cannot be changed after the account has been created (security rule), and there is no 'forgot password'. If you lose it, create a new account. "
+     "Your display name and optional e-mail can be edited in Settings → Account."),
+    (("2fa", "zwei", "two-factor", "faktor", "authenticator", "totp"),
+     "Two-factor sign-in (local accounts) is set up under Settings → Account → 'Set up 2FA'. Enter the key in an authenticator app and confirm with the 6-digit code. "
+     "Make sure your phone's clock is correct."),
+    (("google", "gmail", "anmelden mit", "sign in with"),
+     "'Sign in with Google' works through the cloud account system (Supabase). It needs a one-time setup by the operator of the app. If it is not active, use a JOPMakro account."),
+    (("angemeldet bleiben", "stay signed in", "remember", "login", "anmelden", "abmelden", "logout", "konto", "account"),
+     "When signing in you can choose how long to stay signed in: 24 hours, 1 week, 30 days or forever. Sign out at the bottom of the sidebar."),
+    (("email", "e-mail", "anonym", "anonymous", "privat", "private", "daten", "data", "datenschutz", "privacy", "löschen", "delete"),
+     "E-mail and real name are optional. In Settings → Account you can export your data and delete your account at any time."),
+    (("farbe", "color", "colour", "design", "dunkel", "dark", "hell", "light", "akzent", "accent", "theme", "icon"),
+     "Under Settings → Appearance you can pick Dark, Light or System, an accent colour, presets, your own colours (colour picker) and change the app icon background."),
+    (("sprache", "language", "deutsch", "english", "español", "русский", "français", "中文"),
+     "Change the language under Settings → Language. Available: English, Deutsch, Español, Русский, Français, 中文."),
+    (("verknüpfung", "shortcut", "autostart", "startup", "desktop"),
+     "Under Settings → System you can create a desktop shortcut and switch autostart on or off."),
+    (("download", "drosseln", "throttle", "bandbreite", "bandwidth"),
+     "Limit the download speed for updates under Settings → Performance in KB/s (0 = unlimited)."),
+    (("ram", "cpu", "gpu", "prozessor", "arbeitsspeicher", "memory", "hardware", "leistung", "performance", "kerne", "cores"),
+     "Under Settings → Performance you can limit priority, number of CPU cores and (Windows only) memory of this program. This affects only the launcher itself. "
+     "There is no GPU limit because the program does not use the graphics card."),
+    (("werbung", "ads", "advert", "banner"),
+     "The ad box in the sidebar is a placeholder. No ads are loaded at the moment."),
+    (("kontakt", "contact", "feedback", "fehler melden", "bug", "idee", "idea", "vorschlag"),
+     "Send feedback and bug reports through 'Contact' in the sidebar."),
 ]
 
-FALLBACK = ("Dazu habe ich keine passende Antwort. Versuch es mit anderen Stichwörtern (z. B. „Hotkey“, „Profil“, „Update“) "
-            "oder schreib uns über „Kontakt“.")
+FALLBACK = ("I have no matching answer for that. Try other keywords (e.g. 'hotkey', 'profile', 'update') or write to us via 'Contact'.")
 
 
 def _words(text: str) -> str:
-    return re.sub(r"[^\wäöüß+ ]", " ", text.lower())
+    return re.sub(r"[^\w+ -]", " ", text.lower())
 
 
 def answer_local(question: str) -> str:
@@ -75,18 +83,17 @@ def answer_local(question: str) -> str:
         score = sum(1 for k in keys if k in q)
         if score > best_score:
             best, best_score = answer, score
-    return best or FALLBACK
+    return tr(best or FALLBACK)
 
 
 def _check_url(url: str) -> None:
     p = urllib.parse.urlparse(url)
     local = p.hostname in ("127.0.0.1", "localhost")
     if p.scheme != "https" and not (p.scheme == "http" and local):
-        raise ValueError("Die Assistenten-Adresse muss mit https:// beginnen.")
+        raise ValueError("The assistant address must start with https://")
 
 
 def ask_remote(url: str, history: list[dict], timeout: float = 30) -> str:
-    """history = [{"role": "user"|"assistant", "content": str}, ...]. Gibt die Antwort zurück oder wirft Exception."""
     _check_url(url)
     payload = {"app": APP_ID, "version": APP_VERSION,
                "messages": [{"role": m["role"], "content": m["content"][:1000]} for m in history[-10:]]}
@@ -96,15 +103,21 @@ def ask_remote(url: str, history: list[dict], timeout: float = 30) -> str:
         data = json.loads(resp.read(200_000).decode("utf-8"))
     reply = data.get("reply") if isinstance(data, dict) else None
     if not isinstance(reply, str) or not reply.strip():
-        raise ValueError("Leere Antwort vom Assistenten-Server.")
+        raise ValueError("Empty answer from the assistant server.")
     return reply.strip()
 
 
-def reply(question: str, history: list[dict], url: str) -> tuple[str, bool]:
-    """Gibt (Antwort, kam_von_ki) zurück. Ohne URL oder bei Fehlern antwortet die FAQ."""
+def reply(app, question: str, history: list[dict], url: str = "") -> tuple[str, bool]:
+    """Gibt (Antwort, kam_von_ki) zurück. Reihenfolge: Cloud-KI -> eigener Endpunkt -> FAQ."""
+    hist = [{"role": m["role"], "content": m["content"][:1000]} for m in history[-10:]]
+    if ai_client.available(app):
+        try:
+            return ai_client.ask(app, "help", hist), True
+        except ai_client.AiUnavailable as exc:
+            return answer_local(question) + "\n\n" + tr("(The AI is not reachable: {e}. This is the standard answer.)", e=str(exc)), False
     if url:
         try:
             return ask_remote(url, history), True
         except (ValueError, OSError, urllib.error.URLError):
-            return answer_local(question) + "\n\n(Der KI-Assistent ist gerade nicht erreichbar, das ist die Standard-Antwort.)", False
+            return answer_local(question) + "\n\n" + tr("(The AI assistant is not reachable right now, this is the standard answer.)"), False
     return answer_local(question), False

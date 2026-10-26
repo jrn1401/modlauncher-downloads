@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- UNGETESTET: Vorlage für eine spätere Avalonia-Version (Windows, Linux, macOS; iOS über Avalonia-iOS-Projekt).
+       Die lauffähige v1.1 ist die Python-App im Hauptordner. Dieses Projekt wurde nicht kompiliert. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>Assets/icon.ico</ApplicationIcon>
+    <PublishTrimmed>true</PublishTrimmed>
+    <PublishSingleFile>true</PublishSingleFile>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets/**" />
+  </ItemGroup>
+  <!-- Code-Schutz (Hinweise, nicht aktiv):
+       1) Dotfuscator Community / Obfuscar: dotnet tool install -g Obfuscar.GlobalTool, dann "obfuscar.console obfuscar.xml".
+       2) ILRepack: mehrere DLLs zu einer zusammenführen (nicht mit PublishSingleFile+Trimming kombinieren, erst eines wählen).
+       3) Alternativ NativeAOT (PublishAot=true) – schwerer rückzuentwickeln als IL, aber ebenfalls kein echter Schutz. -->
+</Project>

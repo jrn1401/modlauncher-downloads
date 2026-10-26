@@ -13,6 +13,7 @@ import struct
 import time
 from pathlib import Path
 
+from core.i18n import tr
 from core.config import app_dir, load_json, save_json
 
 PBKDF2_ITER = 600_000
@@ -87,7 +88,7 @@ def _check_password(password: str, rec: dict) -> bool:
 
 def _check_new_password(pw: str) -> None:
     if len(pw) < MIN_PASSWORD:
-        raise AccountError(f"Das Passwort muss mindestens {MIN_PASSWORD} Zeichen lang sein.")
+        raise AccountError(tr("The password must be at least {n} characters long.", n=MIN_PASSWORD))
 
 
 def _norm_user(name: str) -> str:
@@ -114,24 +115,25 @@ class AccountStore:
     def _user(self, username: str) -> dict:
         u = self.users.get(_norm_user(username))
         if not u:
-            raise AccountError("Konto nicht gefunden.")
+            raise AccountError(tr("Account not found."))
         return u
 
     @staticmethod
     def public(u: dict) -> dict:
         return {"username": u["username"], "display_name": u["display_name"], "email": u["email"],
                 "totp_enabled": bool(u["totp_enabled"]), "has_password": bool(u["pw"]),
-                "google_linked": bool(u.get("google_sub"))}
+                "google_linked": False, "backend": "local"}
 
     def _email_taken(self, email: str, except_user: str | None = None) -> bool:
-        return any(u["email"].lower() == email.lower() and u["username"] != except_user
-                   for u in self.users.values())
+        return bool(email) and any(u["email"].lower() == email.lower() and u["username"] != except_user
+                                   for u in self.users.values())
 
     @staticmethod
     def _check_email(email: str) -> str:
+        """E-Mail ist freiwillig: leer = anonym. Wenn angegeben, muss sie gültig sein."""
         email = (email or "").strip()
-        if not EMAIL_RE.match(email):
-            raise AccountError("Bitte eine gültige E-Mail-Adresse eingeben.")
+        if email and not EMAIL_RE.match(email):
+            raise AccountError(tr("Please enter a valid e-mail address or leave the field empty."))
         return email
 
     def _new_record(self, username, display_name, email, pw_rec, google_sub=None) -> dict:
@@ -144,12 +146,12 @@ class AccountStore:
     def register(self, username: str, display_name: str, email: str, password: str) -> dict:
         username = _norm_user(username)
         if not USERNAME_RE.match(username):
-            raise AccountError("Benutzername: 3–24 Zeichen, nur a–z, 0–9, Punkt, Unterstrich, Bindestrich.")
+            raise AccountError(tr("Username: 3-24 characters, only a-z, 0-9, dot, underscore, hyphen."))
         if username in self.users:
-            raise AccountError("Dieser Benutzername ist schon vergeben.")
+            raise AccountError(tr("This username is already taken."))
         email = self._check_email(email)
         if self._email_taken(email):
-            raise AccountError("Diese E-Mail-Adresse wird schon verwendet.")
+            raise AccountError(tr("This e-mail address is already in use."))
         _check_new_password(password)
         display_name = (display_name or "").strip()[:40] or username
         u = self._new_record(username, display_name, email, _hash_password(password))
@@ -159,23 +161,23 @@ class AccountStore:
 
     def authenticate(self, username: str, password: str, code: str | None = None) -> dict:
         u = self.users.get(_norm_user(username))
-        generic = AccountError("Benutzername oder Passwort falsch.")
+        generic = AccountError(tr("Wrong username or password."))
         if not u:
             _check_password(password or "", self._dummy)   # gleiche Rechenzeit wie bei echten Konten
             raise generic
         now = time.time()
         if u["locked_until"] > now:
-            raise AccountError(f"Zu viele Fehlversuche. Bitte in {int(u['locked_until'] - now) + 1} Sekunden erneut versuchen.")
+            raise AccountError(tr("Too many failed attempts. Please try again in {n} seconds.", n=int(u['locked_until'] - now) + 1))
         if not u["pw"] or not _check_password(password or "", u["pw"]):
             self._fail(u)
             raise generic
         if u["totp_enabled"]:
             if not (code or "").strip():
-                raise TotpRequired("Bitte den 6-stelligen Code aus deiner Authenticator-App eingeben.")
+                raise TotpRequired(tr("Please enter the 6-digit code from your authenticator app."))
             counter = verify_totp(u["totp_secret"], code, min_counter=u["totp_last"])
             if counter is None:
                 self._fail(u)
-                raise AccountError("Der 2FA-Code ist falsch oder schon benutzt.")
+                raise AccountError(tr("The 2FA code is wrong or was already used."))
             u["totp_last"] = counter
         u["fails"], u["locked_until"] = 0, 0
         self._save()
@@ -187,56 +189,21 @@ class AccountStore:
             u["fails"], u["locked_until"] = 0, time.time() + LOCK_SECONDS
         self._save()
 
-    # ---- Google
-    def google_login(self, sub: str, email: str, name: str, email_verified: bool) -> dict:
-        if not sub or not email:
-            raise AccountError("Google hat keine E-Mail-Adresse geliefert.")
-        for u in self.users.values():
-            if u.get("google_sub") == sub:
-                return self.public(u)
-        if not email_verified:
-            raise AccountError("Die Google-E-Mail-Adresse ist nicht bestätigt.")
-        for u in self.users.values():
-            if u["email"].lower() == email.lower():      # bestehendes Konto verknüpfen
-                u["google_sub"] = sub
-                self._save()
-                return self.public(u)
-        base = re.sub(r"[^a-z0-9_.-]", "", email.split("@")[0].lower())[:20] or "nutzer"
-        if len(base) < 3:
-            base = (base + "user")[:6]
-        username, i = base, 1
-        while username in self.users:
-            i += 1
-            username = f"{base}{i}"
-        u = self._new_record(username, (name or username).strip()[:40], email, None, google_sub=sub)
-        self.users[username] = u
-        self._save()
-        return self.public(u)
-
     # ---- Profil
     def update_profile(self, username: str, display_name: str, email: str) -> dict:
         u = self._user(username)
         email = self._check_email(email)
         if self._email_taken(email, except_user=u["username"]):
-            raise AccountError("Diese E-Mail-Adresse wird schon verwendet.")
+            raise AccountError(tr("This e-mail address is already in use."))
         u["display_name"] = (display_name or "").strip()[:40] or u["username"]
         u["email"] = email
         self._save()
         return self.public(u)
 
-    def change_password(self, username: str, old: str | None, new: str) -> None:
-        u = self._user(username)
-        if u["pw"] and not _check_password(old or "", u["pw"]):
-            raise AccountError("Das aktuelle Passwort ist falsch.")
-        _check_new_password(new)
-        u["pw"] = _hash_password(new)
-        u["session_hash"] = None      # andere angemeldete Sitzungen beenden
-        self._save()
-
     def begin_totp(self, username: str) -> str:
         u = self._user(username)
         if u["totp_enabled"]:
-            raise AccountError("2FA ist schon aktiv.")
+            raise AccountError(tr("2FA is already active."))
         u["totp_secret"] = new_totp_secret()
         self._save()
         return u["totp_secret"]
@@ -244,36 +211,37 @@ class AccountStore:
     def confirm_totp(self, username: str, code: str) -> None:
         u = self._user(username)
         if not u["totp_secret"]:
-            raise AccountError("Bitte zuerst die Einrichtung starten.")
+            raise AccountError(tr("Please start the setup first."))
         counter = verify_totp(u["totp_secret"], code)
         if counter is None:
-            raise AccountError("Der Code stimmt nicht. Prüfe die Uhrzeit deines Handys und versuche es erneut.")
+            raise AccountError(tr("The code is wrong. Check your phone's clock and try again."))
         u["totp_enabled"], u["totp_last"] = True, counter
         self._save()
 
     def disable_totp(self, username: str, password: str) -> None:
         u = self._user(username)
         if u["pw"] and not _check_password(password or "", u["pw"]):
-            raise AccountError("Das Passwort ist falsch.")
+            raise AccountError(tr("The password is wrong."))
         u["totp_enabled"], u["totp_secret"], u["totp_last"] = False, None, 0
         self._save()
 
     def delete_account(self, username: str, password: str) -> None:
         u = self._user(username)
         if u["pw"] and not _check_password(password or "", u["pw"]):
-            raise AccountError("Das Passwort ist falsch.")
+            raise AccountError(tr("The password is wrong."))
         del self.users[u["username"]]
         self._save()
         self.clear_session()
 
     # ---- "Angemeldet bleiben"
-    def create_session(self, username: str) -> None:
+    def create_session(self, username: str, days: int | None = SESSION_DAYS) -> None:
+        """days=None: für immer angemeldet bleiben."""
         u = self._user(username)
         token = secrets.token_urlsafe(32)
         u["session_hash"] = hashlib.sha256(token.encode()).hexdigest()
         self._save()
         save_json(self.session_path, {"username": u["username"], "token": token,
-                                      "expires": int(time.time()) + SESSION_DAYS * 86400})
+                                      "expires": None if days is None else int(time.time()) + int(days * 86400)})
 
     def resume_session(self) -> dict | None:
         s = load_json(self.session_path)
@@ -281,7 +249,7 @@ class AccountStore:
             return None
         u = self.users.get(_norm_user(s.get("username", "")))
         try:
-            if (u and u.get("session_hash") and s.get("expires", 0) > time.time()
+            if (u and u.get("session_hash") and (s.get("expires") is None or s["expires"] > time.time())
                     and hmac.compare_digest(hashlib.sha256(s["token"].encode()).hexdigest(), u["session_hash"])):
                 return self.public(u)
         except (KeyError, AttributeError):

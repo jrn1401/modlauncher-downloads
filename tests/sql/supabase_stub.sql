@@ -1,0 +1,10 @@
+create role anon nologin; create role authenticated nologin; create role service_role nologin;
+grant usage on schema public to anon, authenticated, service_role;
+create schema auth;
+create table auth.users (id uuid primary key default gen_random_uuid(), email text unique, raw_user_meta_data jsonb default '{}');
+create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
+create schema vault;
+create table vault.secrets (id uuid primary key default gen_random_uuid(), name text unique, secret text);
+create view vault.decrypted_secrets as select id, name, secret as decrypted_secret from vault.secrets;
+create function vault.create_secret(s text, n text, d text default '') returns uuid language sql as $$ insert into vault.secrets(name, secret) values (n, s) returning id $$;

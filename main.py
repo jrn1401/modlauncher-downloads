@@ -26,8 +26,8 @@ def _report_crash(text: str) -> None:
         root = tkinter.Tk()
         root.withdraw()
         messagebox.showerror(
-            "ModLauncher – Startfehler",
-            f"Der Launcher konnte nicht starten:\n\n{text[-1500:]}\n\nLogdatei: {log}")
+            "Jaron's OP Makro – startup error",
+            f"The launcher could not start:\n\n{text[-1500:]}\n\nLog file: {log}")
         root.destroy()
     except Exception:
         pass

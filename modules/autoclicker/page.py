@@ -5,13 +5,17 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from core import theme
+from core.i18n import tr
 
 from . import keys
 from .plugin import build_config
 
-BG_CARD = theme.c("card")
-MOUSE_LABELS = {v: k for k, v in keys.MOUSE_BUTTONS.items()}   # Anzeige -> left/right/middle
-UNIT_LABELS = {"Sekunden": "s", "Minuten": "min", "Stunden": "h"}
+def _mouse_labels():
+    return {tr(v): k for k, v in keys.MOUSE_BUTTONS.items()}   # Anzeige -> left/right/middle
+
+
+def _unit_labels():
+    return {tr("Seconds"): "s", tr("Minutes"): "min", tr("Hours"): "h"}
 
 
 class AutoClickerPage(ctk.CTkScrollableFrame):
@@ -46,26 +50,26 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
 
     # ---------- UI-Bausteine ----------
     def _card(self, row, title):
-        card = ctk.CTkFrame(self, fg_color=BG_CARD, corner_radius=12)
+        card = ctk.CTkFrame(self, fg_color=theme.c("card"), corner_radius=12)
         card.grid(row=row, column=0, sticky="ew", padx=24, pady=6)
-        ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=15, weight="bold")).grid(
+        ctk.CTkLabel(card, text=tr(title), font=ctk.CTkFont(size=15, weight="bold")).grid(
             row=0, column=0, columnspan=8, sticky="w", padx=16, pady=(12, 6))
         return card
 
     def _build_profile_card(self, row):
-        c = self._card(row, "Profil")
+        c = self._card(row, "Profile")
         ctk.CTkEntry(c, textvariable=self.v["name"], width=220).grid(row=1, column=0, padx=(16, 8), pady=(0, 14))
-        ctk.CTkButton(c, text="Speichern …", width=110, command=self.save_profile).grid(row=1, column=1, padx=4, pady=(0, 14))
-        ctk.CTkButton(c, text="Laden …", width=110, command=self.load_profile).grid(row=1, column=2, padx=4, pady=(0, 14))
+        ctk.CTkButton(c, text=tr("Save …"), width=110, command=self.save_profile).grid(row=1, column=1, padx=4, pady=(0, 14))
+        ctk.CTkButton(c, text=tr("Load …"), width=110, command=self.load_profile).grid(row=1, column=2, padx=4, pady=(0, 14))
 
     def _build_target_card(self, row):
-        c = self._card(row, "Ziel-Taste")
-        self.kind_seg = ctk.CTkSegmentedButton(c, values=["Maus", "Tastatur"], command=self._kind_changed)
+        c = self._card(row, "Target key")
+        self.kind_seg = ctk.CTkSegmentedButton(c, values=[tr("Mouse"), tr("Keyboard")], command=self._kind_changed)
         self.kind_seg.grid(row=1, column=0, padx=16, pady=(0, 8), sticky="w")
-        self.mouse_menu = ctk.CTkOptionMenu(c, values=list(MOUSE_LABELS), variable=self.v["mouse"], width=200)
+        self.mouse_menu = ctk.CTkOptionMenu(c, values=list(_mouse_labels()), variable=self.v["mouse"], width=200)
         self.key_box = ctk.CTkFrame(c, fg_color="transparent")
         ctk.CTkComboBox(self.key_box, values=keys.COMMON_KEYS, variable=self.v["key"], width=120).pack(side="left")
-        self.key_btn = ctk.CTkButton(self.key_box, text="Taste aufnehmen", width=140,
+        self.key_btn = ctk.CTkButton(self.key_box, text=tr("Record key"), width=140,
                                      command=lambda: self._capture_start("key"))
         self.key_btn.pack(side="left", padx=8)
         self.mouse_menu.grid(row=2, column=0, padx=16, pady=(0, 14), sticky="w")
@@ -75,8 +79,8 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
         return ctk.CTkEntry(parent, textvariable=var, width=width, justify="center")
 
     def _build_timing_card(self, row):
-        c = self._card(row, "Klick-Intervall")
-        for col, (key, label) in enumerate((("min", "Minuten"), ("s", "Sekunden"), ("ms", "Millisekunden"))):
+        c = self._card(row, "Click interval")
+        for col, (key, label) in enumerate((("min", tr("Minutes")), ("s", tr("Seconds")), ("ms", tr("Milliseconds")))):
             f = ctk.CTkFrame(c, fg_color="transparent")
             f.grid(row=1, column=col, padx=(16 if col == 0 else 6, 6), pady=(0, 6))
             self._entry(f, self.v[key]).pack()
@@ -84,46 +88,46 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
         f = ctk.CTkFrame(c, fg_color="transparent")
         f.grid(row=1, column=3, padx=(24, 6), pady=(0, 6))
         self._entry(f, self.v["start_delay"]).pack()
-        ctk.CTkLabel(f, text="Startverzögerung (s)", text_color=theme.MUTED).pack()
-        ctk.CTkLabel(c, text="Minimum: 1 ms. Sehr kurze Intervalle sind abhängig von Betriebssystem und Zielprogramm.",
+        ctk.CTkLabel(f, text=tr("Start delay (s)"), text_color=theme.MUTED).pack()
+        ctk.CTkLabel(c, text=tr("Minimum: 1 ms. Very short intervals depend on the operating system and the target program."),
                      text_color=theme.MUTED).grid(row=2, column=0, columnspan=8, sticky="w", padx=16, pady=(0, 12))
 
     def _build_repeat_card(self, row):
-        c = self._card(row, "Wiederholungen & Timer")
-        ctk.CTkRadioButton(c, text="Unendlich wiederholen (bis Stop)", variable=self.v["repeat_mode"],
+        c = self._card(row, "Repeats & timer")
+        ctk.CTkRadioButton(c, text=tr("Repeat forever (until stop)"), variable=self.v["repeat_mode"],
                            value="infinite").grid(row=1, column=0, columnspan=3, sticky="w", padx=16, pady=4)
-        ctk.CTkRadioButton(c, text="Wiederholen:", variable=self.v["repeat_mode"], value="count").grid(
+        ctk.CTkRadioButton(c, text=tr("Repeat:"), variable=self.v["repeat_mode"], value="count").grid(
             row=2, column=0, sticky="w", padx=16, pady=4)
         self._entry(c, self.v["repeat_count"]).grid(row=2, column=1, padx=4)
-        ctk.CTkLabel(c, text="mal").grid(row=2, column=2, sticky="w")
-        ctk.CTkSwitch(c, text="Laufzeit begrenzen:", variable=self.v["timer_enabled"]).grid(
+        ctk.CTkLabel(c, text=tr("times")).grid(row=2, column=2, sticky="w")
+        ctk.CTkSwitch(c, text=tr("Limit run time:"), variable=self.v["timer_enabled"]).grid(
             row=3, column=0, sticky="w", padx=16, pady=(8, 14))
         self._entry(c, self.v["timer_value"]).grid(row=3, column=1, padx=4, pady=(8, 14))
-        ctk.CTkOptionMenu(c, values=list(UNIT_LABELS), variable=self.v["timer_unit"], width=110).grid(
+        ctk.CTkOptionMenu(c, values=list(_unit_labels()), variable=self.v["timer_unit"], width=110).grid(
             row=3, column=2, padx=4, pady=(8, 14))
 
     def _build_hotkey_card(self, row):
-        c = self._card(row, "Globale Hotkeys (funktionieren auch im Hintergrund)")
+        c = self._card(row, "Global hotkeys (work in the background too)")
         self.hk_labels = {}
-        for r, (key, label) in enumerate((("hk_start", "Start"), ("hk_stop", "Stop")), start=1):
+        for r, (key, label) in enumerate((("hk_start", tr("Start")), ("hk_stop", tr("Stop"))), start=1):
             ctk.CTkLabel(c, text=label, width=50, anchor="w").grid(row=r, column=0, padx=(16, 4), pady=4)
             lab = ctk.CTkLabel(c, text="", width=170, fg_color=theme.c("inset"), corner_radius=6)
             lab.grid(row=r, column=1, padx=4)
             self.hk_labels[key] = lab
-            ctk.CTkButton(c, text="Aufnehmen", width=100,
+            ctk.CTkButton(c, text=tr("Record"), width=100,
                           command=lambda k=key: self._capture_start(k)).grid(row=r, column=2, padx=8)
-        ctk.CTkLabel(c, text="Start = Stop → eine Taste schaltet um (Toggle). Beispiele: F6, Strg+Alt+P.",
+        ctk.CTkLabel(c, text=tr("Start = Stop: one key toggles. Examples: F6, Ctrl+Alt+P."),
                      text_color=theme.MUTED).grid(row=3, column=0, columnspan=8, sticky="w", padx=16, pady=(4, 12))
         self.hk_err = ctk.CTkLabel(c, text="", text_color=theme.DANGER, wraplength=600, justify="left")
         self.hk_err.grid(row=4, column=0, columnspan=8, sticky="w", padx=16)
 
     def _build_control_card(self, row):
-        c = self._card(row, "Steuerung")
-        ctk.CTkButton(c, text="▶  Start", width=130, fg_color="#2e9d5b", hover_color="#247a47",
+        c = self._card(row, "Control")
+        ctk.CTkButton(c, text="▶  " + tr("Start"), width=130, fg_color="#2e9d5b", hover_color="#247a47",
                       command=self.start).grid(row=1, column=0, padx=(16, 6), pady=(0, 8))
-        ctk.CTkButton(c, text="■  Stop", width=130, fg_color="#c0392b", hover_color="#962d22",
+        ctk.CTkButton(c, text="■  " + tr("Stop"), width=130, fg_color="#c0392b", hover_color="#962d22",
                       command=self.plugin.stop).grid(row=1, column=1, padx=6, pady=(0, 8))
-        self.status = ctk.CTkLabel(c, text="Bereit", font=ctk.CTkFont(size=14, weight="bold"))
+        self.status = ctk.CTkLabel(c, text=tr("Ready"), font=ctk.CTkFont(size=14, weight="bold"))
         self.status.grid(row=1, column=2, padx=20, pady=(0, 8), sticky="w")
         self.stats = ctk.CTkLabel(c, text="", text_color="gray")
         self.stats.grid(row=2, column=0, columnspan=8, sticky="w", padx=16, pady=(0, 12))
@@ -135,7 +139,7 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
         v["name"].set(p["name"])
         kind, _, name = p["target"].partition(":")
         v["kind"].set(kind)
-        v["mouse"].set(keys.MOUSE_BUTTONS.get(name, "Linke Maustaste") if kind == "mouse" else "Linke Maustaste")
+        v["mouse"].set(tr(keys.MOUSE_BUTTONS.get(name, "Left mouse button")) if kind == "mouse" else tr("Left mouse button"))
         v["key"].set(name if kind == "key" else "e")
         for k in ("ms", "s", "min"):
             v[k].set(str(p["interval"][k]))
@@ -143,19 +147,19 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
         v["repeat_count"].set(str(p["repeat_count"]))
         v["timer_enabled"].set(bool(p["timer_enabled"]))
         v["timer_value"].set(str(p["timer_value"]))
-        v["timer_unit"].set({"s": "Sekunden", "min": "Minuten", "h": "Stunden"}.get(p["timer_unit"], "Minuten"))
+        v["timer_unit"].set({"s": tr("Seconds"), "min": tr("Minutes"), "h": tr("Hours")}.get(p["timer_unit"], tr("Minutes")))
         v["start_delay"].set(str(p["start_delay"]))
         v["hk_start"].set(p["hotkey_start"])
         v["hk_stop"].set(p["hotkey_stop"])
-        self.kind_seg.set("Maus" if kind == "mouse" else "Tastatur")
+        self.kind_seg.set(tr("Mouse") if kind == "mouse" else tr("Keyboard"))
         self._show_kind(kind)
         self._refresh_hotkey_labels()
         self._loading = False
 
     def read_form(self) -> dict:
         v = self.v
-        if self.kind_seg.get() == "Maus":
-            target = f"mouse:{MOUSE_LABELS.get(v['mouse'].get(), 'left')}"
+        if self.kind_seg.get() == tr("Mouse"):
+            target = f"mouse:{_mouse_labels().get(v['mouse'].get(), 'left')}"
         else:
             target = f"key:{v['key'].get().strip()}"
         return {
@@ -166,7 +170,7 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
             "repeat_count": v["repeat_count"].get().strip() or "0",
             "timer_enabled": v["timer_enabled"].get(),
             "timer_value": v["timer_value"].get().strip() or "0",
-            "timer_unit": UNIT_LABELS.get(v["timer_unit"].get(), "min"),
+            "timer_unit": _unit_labels().get(v["timer_unit"].get(), "min"),
             "start_delay": v["start_delay"].get().strip() or "0",
             "hotkey_start": v["hk_start"].get(),
             "hotkey_stop": v["hk_stop"].get(),
@@ -181,7 +185,7 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
         try:
             build_config(prof)
         except ValueError as exc:
-            self._input_error = f"Eingabe: {exc}"
+            self._input_error = tr("Input: {e}", e=exc)
             return str(exc)
         self._input_error = ""
         # Zahlen normalisieren, damit gespeicherte Profile saubere Werte enthalten
@@ -195,7 +199,7 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
 
     # ---------- Interaktion ----------
     def _kind_changed(self, label):
-        self._show_kind("mouse" if label == "Maus" else "key")
+        self._show_kind("mouse" if label == tr("Mouse") else "key")
         self.apply()
 
     def _show_kind(self, kind):
@@ -215,10 +219,10 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
         if self._capture:
             self._capture.cancel()
         combo = what != "key"
-        hint = "Drücke Tastenkombination … (Esc = Abbruch)" if combo else "Drücke eine Taste … (Esc = Abbruch)"
+        hint = tr("Press a key combination … (Esc = cancel)") if combo else tr("Press a key … (Esc = cancel)")
         target = self.key_btn if what == "key" else None
         if target:
-            target.configure(text="Drücke Taste …")
+            target.configure(text=tr("Press a key …"))
         else:
             self.hk_labels[what].configure(text=hint)
 
@@ -230,7 +234,7 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
 
     def _capture_done(self, what, result):
         self._capture = None
-        self.key_btn.configure(text="Taste aufnehmen")
+        self.key_btn.configure(text=tr("Record key"))
         if result:
             self.v["key" if what == "key" else what].set(result)
         self._refresh_hotkey_labels()
@@ -241,7 +245,7 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
             return
         err = self.plugin.start()
         if err:
-            self._input_error = f"Eingabe: {err}"
+            self._input_error = tr("Input: {e}", e=err)
 
     # ---------- Profile ----------
     def save_profile(self):
@@ -250,20 +254,20 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
         name = self.plugin.profile["name"]
         path = filedialog.asksaveasfilename(
             initialdir=self.plugin.profiles_dir(), initialfile=f"{name}.json",
-            defaultextension=".json", filetypes=[("Profil (JSON)", "*.json")])
+            defaultextension=".json", filetypes=[(tr("Profile (JSON)"), "*.json")])
         if path:
             self.plugin.save_profile_file(path)
 
     def load_profile(self):
         path = filedialog.askopenfilename(initialdir=self.plugin.profiles_dir(),
-                                          filetypes=[("Profil (JSON)", "*.json")])
+                                          filetypes=[(tr("Profile (JSON)"), "*.json")])
         if not path:
             return
         try:
             prof = self.plugin.load_profile_file(path)
             self.fill_from_profile(prof)
         except Exception as exc:
-            messagebox.showerror("Profil laden", str(exc))
+            messagebox.showerror(tr("Load profile"), str(exc))
             return
         self.apply()
 
@@ -275,16 +279,16 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
         if self._input_error and not eng.running:
             self.status.configure(text=self._input_error, text_color=theme.DANGER)
         elif eng.state == eng.RUNNING:
-            self.status.configure(text="● Läuft", text_color="#2ecc71")
+            self.status.configure(text=tr("● Running"), text_color="#2ecc71")
         elif eng.state == eng.WAITING:
-            self.status.configure(text="… Startverzögerung", text_color="#f1c40f")
+            self.status.configure(text=tr("… Start delay"), text_color="#f1c40f")
         else:
-            reasons = {"count": "Fertig (Wiederholungen erreicht)", "timer": "Fertig (Timer abgelaufen)",
-                       "stopped": "Gestoppt"}
-            txt = reasons.get(eng.last_reason, eng.last_reason) or "Bereit"
+            reasons = {"count": tr("Done (repeats reached)"), "timer": tr("Done (timer elapsed)"),
+                       "stopped": tr("Stopped")}
+            txt = reasons.get(eng.last_reason, eng.last_reason) or tr("Ready")
             color = theme.DANGER if txt.startswith("error") else theme.TEXT
             self.status.configure(text=txt, text_color=color)
         mins, secs = divmod(int(eng.elapsed()), 60)
-        self.stats.configure(text=f"Ausführungen: {eng.count}   ·   Laufzeit: {mins:02d}:{secs:02d}")
+        self.stats.configure(text=tr("Executions: {n}   ·   Run time: {t}", n=eng.count, t=f"{mins:02d}:{secs:02d}"))
         self.hk_err.configure(text=self.plugin.hotkey_error)
         self.after(100, self._tick)

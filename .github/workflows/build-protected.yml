@@ -1,0 +1,22 @@
+name: Protected build (optional, manual)
+
+# Kompiliert den Python-Code mit Nuitka zu einer nativen EXE. Das erschwert Reverse Engineering deutlich gegenüber
+# PyInstaller, macht es aber NICHT unmöglich. Dauert lange (10-30 min). Ungetestet: bitte einmal manuell ausprobieren.
+on: workflow_dispatch
+
+jobs:
+  nuitka:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: python -m pip install -r requirements.txt nuitka
+      - run: python tools/make_icon.py
+      - shell: bash
+        run: >
+          python -m nuitka --onefile --windows-console-mode=disable --enable-plugin=tk-inter
+          --windows-icon-from-ico=build/icon.ico --include-package=modules --include-package=core
+          --include-package-data=customtkinter --output-filename=JaronsOPMakro-protected.exe --assume-yes-for-downloads main.py
+      - uses: actions/upload-artifact@v4
+        with: { name: JaronsOPMakro-protected, path: JaronsOPMakro-protected.exe }

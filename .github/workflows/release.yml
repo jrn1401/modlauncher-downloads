@@ -1,28 +1,59 @@
-name: Build and release
+name: Test, build and release
 
-# Läuft automatisch, wenn core/version.py auf main geändert wird (also bei jeder neuen Version),
-# oder manuell über "Run workflow". Legt das Release "v<APP_VERSION>" an, falls es noch nicht existiert.
+# Läuft bei jedem Push auf main (Tests) und baut + veröffentlicht automatisch, wenn core/version.py geändert wurde
+# (neue Version). Danach liegt das Paket als direkter Download bereit:
+#   https://github.com/<OWNER>/<REPO>/releases/latest/download/JaronsOPMakro.exe
+# und – falls Supabase-Secrets gesetzt sind – zusätzlich als Spiegel im öffentlichen Supabase-Bucket "releases".
 on:
   push:
     branches: [main]
-    paths: ["core/version.py"]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: python -m pip install pillow
+      - name: Python-Tests (mit Attrappen, ohne Fenster)
+        run: python tests/test_all.py
+      - name: Supabase-Migration gegen echte PostgreSQL prüfen
+        env: { PGPASSWORD: postgres }
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -q -c "create role pgtest superuser login" || true
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -q -f tests/sql/supabase_stub.sql
+          for f in supabase/migrations/*.sql; do psql -h localhost -U postgres -v ON_ERROR_STOP=1 -q -f "$f"; done
+          psql -h localhost -U postgres -q -f tests/sql/rls_test.sql | tail -n 20
+      - name: Edge-Function-Logik prüfen (Node, mit Attrappen)
+        run: |
+          mkdir -p /tmp/edge && cp tests/edge/* /tmp/edge/ && cp supabase/functions/jopml-ai/knowledge.ts /tmp/edge/
+          sed 's#npm:@supabase/supabase-js@2#./mock.mjs#' supabase/functions/jopml-ai/index.ts > /tmp/edge/index.ts
+          cd /tmp/edge && node --experimental-strip-types --no-warnings run.mts
+
+  build-windows:
+    needs: test
     runs-on: windows-latest
     defaults:
       run:
         shell: bash
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
+        with: { python-version: "3.13" }
 
       - name: Version aus dem Code lesen
         id: ver
@@ -31,11 +62,18 @@ jobs:
       - name: Pakete installieren
         run: python -m pip install -r requirements.txt pyinstaller
 
+      - name: Icon erzeugen
+        run: python tools/make_icon.py
+
       - name: EXE bauen
         run: >
-          pyinstaller --noconfirm --clean --noconsole --onefile --name JaronsOPMakro
-          --collect-all customtkinter --collect-submodules modules
-          --hidden-import modules.autoclicker.plugin --collect-submodules pynput main.py
+          pyinstaller --noconfirm --clean --noconsole --onefile --name JaronsOPMakro --icon build/icon.ico
+          --collect-all customtkinter --collect-submodules modules --collect-submodules core --collect-submodules pynput main.py
+
+      - name: Smoke-Test der EXE (startet kurz und beendet sich)
+        run: |
+          ls -la dist
+          test -s dist/JaronsOPMakro.exe
 
       - name: version.json erzeugen
         run: |
@@ -45,19 +83,68 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: JaronsOPMakro
+          name: JaronsOPMakro-windows
           path: |
             dist/JaronsOPMakro.exe
             dist/version.json
 
-      - name: Release veröffentlichen
+  build-linux:
+    # Optional und noch nicht in version.json: Zeigt, ob das Programm unter Linux baut. Ein Fehler hier bricht nichts ab.
+    needs: test
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: sudo apt-get update && sudo apt-get install -y python3-tk xvfb
+      - run: python -m pip install -r requirements.txt pyinstaller
+      - run: python tools/make_icon.py
+      - run: >
+          pyinstaller --noconfirm --clean --onefile --name JaronsOPMakro-linux
+          --collect-all customtkinter --collect-submodules modules --collect-submodules core --collect-submodules pynput main.py
+      - uses: actions/upload-artifact@v4
+        with: { name: JaronsOPMakro-linux, path: dist/JaronsOPMakro-linux }
+
+  release:
+    # Veröffentlicht nur, wenn core/version.py im Push geändert wurde (oder manuell gestartet).
+    needs: [build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - name: Wurde die Version geändert?
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || git diff --name-only HEAD~1 HEAD | grep -q '^core/version.py$'; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.changed.outputs.yes == 'true'
+        uses: actions/download-artifact@v4
+        with: { name: JaronsOPMakro-windows, path: dist }
+      - name: GitHub-Release anlegen
+        if: steps.changed.outputs.yes == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v${{ steps.ver.outputs.version }}"
+          TAG="v${{ needs.build-windows.outputs.version }}"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG existiert schon. Bitte APP_VERSION in core/version.py erhöhen. EXE nur als Artefakt gespeichert."
+            echo "Release $TAG existiert schon. Bitte APP_VERSION in core/version.py erhöhen."
             exit 0
           fi
           gh release create "$TAG" dist/JaronsOPMakro.exe dist/version.json \
-            --target "${GITHUB_SHA}" --title "Version ${{ steps.ver.outputs.version }}" --notes-file RELEASE_NOTES.txt
+            --target "${GITHUB_SHA}" --title "Version ${{ needs.build-windows.outputs.version }}" --notes-file RELEASE_NOTES.txt
+      - name: Spiegel im Supabase-Bucket "releases" (nur wenn Secrets gesetzt sind)
+        if: steps.changed.outputs.yes == 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then echo "Supabase-Secrets fehlen – übersprungen."; exit 0; fi
+          for f in dist/JaronsOPMakro.exe dist/version.json; do
+            curl -fsS -X POST "$SUPABASE_URL/storage/v1/object/releases/$(basename $f)" \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "x-upsert: true" --data-binary @"$f" -o /dev/null
+          done
+          echo "Direkter Download: $SUPABASE_URL/storage/v1/object/public/releases/JaronsOPMakro.exe"

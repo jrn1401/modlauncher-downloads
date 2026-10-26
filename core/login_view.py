@@ -1,172 +1,186 @@
-"""Anmeldeseite: Anmelden, Registrieren, Google, 'Angemeldet bleiben', 2FA-Code."""
+"""Anmeldung: JOPMakro-Konto (Benutzername + Passwort, E-Mail freiwillig) oder Google; "Angemeldet bleiben"."""
 import threading
-
-import tkinter
+import tkinter as tk
 
 import customtkinter as ctk
 
-from core import accounts, google_auth, theme
-from core.version import APP_NAME, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+from core import accounts, i18n, theme
+from core.identity import REMEMBER_CHOICES
+from core.version import APP_NAME
+
+
+def remember_label(days) -> str:
+    return i18n.tr(next(l for l, d in REMEMBER_CHOICES if d == days))
+
+
+def remember_value(label: str):
+    return next((d for l, d in REMEMBER_CHOICES if i18n.tr(l) == label), 0)
+
+
+def default_days(settings: dict):
+    v = str(settings.get("remember", "30"))
+    return None if v == "forever" else int(v) if v.isdigit() else 30
+
+
+def days_to_setting(days) -> str:
+    return "forever" if days is None else str(days)
+
+
+tr = i18n.tr
 
 
 class LoginView(ctk.CTkFrame):
     def __init__(self, parent, app):
         super().__init__(parent, fg_color=theme.c("main"), corner_radius=0)
         self.app = app
-        self._busy = False
-        self._cancel_google: threading.Event | None = None
-        self.remember = tkinter.BooleanVar(value=True)
+        self.ident = app.identity
+        self.mode = "login"
+        self._cancel: threading.Event | None = None
+        self.card = ctk.CTkFrame(self, fg_color=theme.c("card"), corner_radius=16)
+        self.card.place(relx=0.5, rely=0.5, anchor="center")
+        self.body = None
+        self._build()
 
-        card = ctk.CTkFrame(self, fg_color=theme.c("card"), corner_radius=16, width=440)
-        card.place(relx=0.5, rely=0.5, anchor="center")
-        inner = ctk.CTkFrame(card, fg_color="transparent")
-        inner.pack(padx=36, pady=30)
+    def _build(self):
+        if self.body is not None:
+            self.body.destroy()
+        b = self.body = ctk.CTkFrame(self.card, fg_color="transparent")
+        b.pack(padx=40, pady=30)
+        ctk.CTkLabel(b, text=APP_NAME, font=ctk.CTkFont(size=26, weight="bold")).pack()
+        ctk.CTkLabel(b, text=tr("Sign in to continue") if self.mode == "login" else tr("Create your JOPMakro account"),
+                     text_color=theme.MUTED).pack(pady=(0, 14))
+        seg = ctk.CTkSegmentedButton(b, values=[tr("Sign in"), tr("Create account")], command=self._switch, width=320)
+        seg.set(tr("Sign in") if self.mode == "login" else tr("Create account"))
+        seg.pack(pady=(0, 12))
 
-        ctk.CTkLabel(inner, text=APP_NAME, font=ctk.CTkFont(size=26, weight="bold")).pack()
-        ctk.CTkLabel(inner, text="Melde dich an, um fortzufahren", text_color=theme.MUTED).pack(pady=(2, 14))
-        self.tabs = ctk.CTkSegmentedButton(inner, values=["Anmelden", "Registrieren"], command=self._switch)
-        self.tabs.set("Anmelden")
-        self.tabs.pack(fill="x", pady=(0, 14))
+        self.e_user = self._entry(b, tr("Username"))
+        if self.mode == "register":
+            self.e_display = self._entry(b, tr("Display name (optional)"))
+            self.e_mail = self._entry(b, tr("E-mail (optional – leave empty to stay anonymous)"))
+        self.e_pw = self._entry(b, tr("Password"), secret=True)
+        if self.mode == "register":
+            self.e_pw2 = self._entry(b, tr("Repeat password"), secret=True)
+            ctk.CTkLabel(b, text="🔒 " + tr("The password cannot be changed after the account has been created. "
+                                             "There is no recovery – keep it safe."),
+                         text_color="#f59e0b", wraplength=320, justify="left").pack(pady=(2, 6))
+        self.e_code = None
+        self.code_frame = ctk.CTkFrame(b, fg_color="transparent")
+        self.code_frame.pack()
 
-        self.body = ctk.CTkFrame(inner, fg_color="transparent", width=340)
-        self.body.pack(fill="x")
-        self._build_login()
-        self._build_register()
-        self.form_login.pack(fill="x")
+        row = ctk.CTkFrame(b, fg_color="transparent")
+        row.pack(fill="x", pady=(6, 2))
+        ctk.CTkLabel(row, text=tr("Stay signed in:"), text_color=theme.MUTED).pack(side="left")
+        self.o_remember = ctk.CTkOptionMenu(row, values=[tr(l) for l, _ in REMEMBER_CHOICES], width=170)
+        self.o_remember.set(remember_label(default_days(self.app.settings)))
+        self.o_remember.pack(side="right")
 
-        self.status = ctk.CTkLabel(inner, text="", wraplength=340, justify="left", text_color=theme.DANGER)
-        self.status.pack(fill="x", pady=(10, 0))
+        self.msg = ctk.CTkLabel(b, text="", text_color=theme.DANGER, wraplength=330, justify="left")
+        self.msg.pack(pady=(6, 0))
+        self.btn = ctk.CTkButton(b, text=tr("Sign in") if self.mode == "login" else tr("Create account"), width=320,
+                                 height=40, command=self.submit)
+        self.btn.pack(pady=(8, 8))
+        ctk.CTkLabel(b, text=tr("or"), text_color=theme.MUTED).pack()
+        self.g_btn = ctk.CTkButton(b, text="G   " + tr("Sign in with Google"), width=320, height=40, fg_color="#ffffff",
+                                   text_color="#1f1f1f", hover_color="#e8e8e8", command=self.google)
+        self.g_btn.pack(pady=(8, 0))
+        if not self.ident.supports_google:
+            ctk.CTkLabel(b, text=tr("Google sign-in needs the cloud server (not set up yet)."), text_color=theme.MUTED,
+                         wraplength=320).pack(pady=(4, 0))
+        self.e_user.focus_set()
+        for e in (self.e_user, self.e_pw):
+            e.bind("<Return>", lambda _e: self.submit())
 
-    # ---------- Formulare ----------
-    def _entry(self, parent, placeholder, secret=False):
-        e = ctk.CTkEntry(parent, placeholder_text=placeholder, width=340, height=36, show="•" if secret else "")
+    @staticmethod
+    def _entry(parent, placeholder, secret=False):
+        e = ctk.CTkEntry(parent, width=320, height=38, placeholder_text=placeholder, show="•" if secret else "")
         e.pack(pady=4)
         return e
 
-    def _build_login(self):
-        f = self.form_login = ctk.CTkFrame(self.body, fg_color="transparent")
-        self.l_user = self._entry(f, "Benutzername")
-        self.l_pass = self._entry(f, "Passwort", secret=True)
-        self.l_code = ctk.CTkEntry(f, placeholder_text="2FA-Code (6 Ziffern)", width=340, height=36)   # erst bei Bedarf sichtbar
-        self.l_remember = ctk.CTkCheckBox(f, text="Angemeldet bleiben", variable=self.remember)
-        self.l_remember.pack(anchor="w", pady=(8, 4))
-        self.l_btn = ctk.CTkButton(f, text="Anmelden", width=340, height=38, command=self._do_login)
-        self.l_btn.pack(pady=(6, 4))
-        ctk.CTkLabel(f, text="— oder —", text_color=theme.MUTED).pack(pady=2)
-        self.g_btn = ctk.CTkButton(f, text="Mit Google anmelden", width=340, height=38, fg_color=("#ffffff", "#ffffff"),
-                                   hover_color=("#e8e8e8", "#e8e8e8"), text_color="#202124", command=self._do_google)
-        self.g_btn.pack(pady=(4, 0))
-        for e in (self.l_user, self.l_pass, self.l_code):
-            e.bind("<Return>", lambda _e: self._do_login())
-
-    def _build_register(self):
-        f = self.form_register = ctk.CTkFrame(self.body, fg_color="transparent")
-        self.r_user = self._entry(f, "Benutzername (a–z, 0–9, . _ -)")
-        self.r_name = self._entry(f, "Anzeigename (wird im Programm gezeigt)")
-        self.r_mail = self._entry(f, "E-Mail-Adresse")
-        self.r_pass = self._entry(f, "Passwort (mind. 8 Zeichen)", secret=True)
-        self.r_pass2 = self._entry(f, "Passwort wiederholen", secret=True)
-        ctk.CTkCheckBox(f, text="Angemeldet bleiben", variable=self.remember).pack(anchor="w", pady=(8, 4))
-        self.r_btn = ctk.CTkButton(f, text="Konto erstellen", width=340, height=38, command=self._do_register)
-        self.r_btn.pack(pady=(6, 0))
-        ctk.CTkLabel(f, text="Dein Konto wird nur auf diesem PC gespeichert.", text_color=theme.MUTED).pack(pady=(8, 0))
-        self.r_pass2.bind("<Return>", lambda _e: self._do_register())
-
     def _switch(self, label):
-        self._say("")
-        self.form_login.pack_forget()
-        self.form_register.pack_forget()
-        (self.form_login if label == "Anmelden" else self.form_register).pack(fill="x")
+        self.mode = "login" if label == tr("Sign in") else "register"
+        self._build()
 
-    # ---------- Hilfen ----------
     def _say(self, text, ok=False):
-        self.status.configure(text=text, text_color=theme.OK if ok else theme.DANGER)
+        if self.winfo_exists():
+            self.msg.configure(text=text, text_color=theme.OK if ok else theme.DANGER)
 
-    def _set_busy(self, busy: bool):
-        self._busy = busy
-        state = "disabled" if busy else "normal"
-        self.l_btn.configure(state=state)
-        self.r_btn.configure(state=state)
+    def _busy(self, on: bool):
+        state = "disabled" if on else "normal"
+        self.btn.configure(state=state)
 
-    def _async(self, work, on_ok, on_err=None):
-        """Führt work() in einem Thread aus (Passwort-Hashing dauert einen Moment) und meldet das Ergebnis im UI-Thread."""
-        self._set_busy(True)
+    # ---------- Anmelden / Registrieren
+    def submit(self):
+        user, pw = self.e_user.get().strip(), self.e_pw.get()
+        code = self.e_code.get().strip() if self.e_code is not None else None
+        days = remember_value(self.o_remember.get())
+        if not user or not pw:
+            self._say(tr("Please enter username and password."))
+            return
+        if self.mode == "register":
+            if pw != self.e_pw2.get():
+                self._say(tr("The passwords do not match."))
+                return
+            args = (user, self.e_display.get(), self.e_mail.get(), pw)
+            work = lambda: self.ident.register(*args)
+        else:
+            work = lambda: self.ident.login(user, pw, code)
+        self._busy(True)
+        self._say(tr("Please wait …"), True)
 
         def run():
             try:
-                res, err = work(), None
+                res, err, need_code = work(), None, False
+            except accounts.TotpRequired as exc:
+                res, err, need_code = None, str(exc), True
+            except accounts.AccountError as exc:
+                res, err, need_code = None, str(exc), False
             except Exception as exc:
-                res, err = None, exc
-            self.app.call_soon(self._finish, res, err, on_ok, on_err)
+                res, err, need_code = None, f"{type(exc).__name__}: {exc}", False
+            self.app.call_soon(self._result, res, err, need_code, days)
 
         threading.Thread(target=run, daemon=True).start()
 
-    def _finish(self, res, err, on_ok, on_err):
+    def _result(self, user, err, need_code, days):
         if not self.winfo_exists():
             return
-        self._set_busy(False)
-        if err is None:
-            on_ok(res)
-        elif on_err and on_err(err):
+        self._busy(False)
+        if need_code and self.e_code is None:
+            self.e_code = ctk.CTkEntry(self.code_frame, width=320, height=38, placeholder_text=tr("6-digit code (2FA)"))
+            self.e_code.pack(pady=4)
+            self.e_code.focus_set()
+        if err:
+            self._say(tr(err))
             return
-        else:
-            self._say(str(err) if isinstance(err, (accounts.AccountError, google_auth.GoogleAuthError))
-                      else f"Unerwarteter Fehler: {err}")
+        self.app.login_done(user, days)
 
-    # ---------- Aktionen ----------
-    def _do_login(self):
-        if self._busy:
+    # ---------- Google
+    def google(self):
+        if self._cancel is not None:                 # zweiter Klick = abbrechen
+            self._cancel.set()
             return
-        user, pw, code = self.l_user.get(), self.l_pass.get(), self.l_code.get()
-        if not user.strip() or not pw:
-            self._say("Bitte Benutzername und Passwort eingeben.")
+        days = remember_value(self.o_remember.get())
+        self._cancel = threading.Event()
+        self.g_btn.configure(text=tr("Cancel (waiting for the browser …)"))
+        self._say(tr("Your browser opens. Finish signing in there."), True)
+        cancel = self._cancel
+
+        def run():
+            try:
+                res, err = self.ident.google(cancel), None
+            except accounts.AccountError as exc:
+                res, err = None, str(exc)
+            except Exception as exc:
+                res, err = None, f"{type(exc).__name__}: {exc}"
+            self.app.call_soon(self._google_done, res, err, days)
+
+        threading.Thread(target=run, daemon=True).start()
+
+    def _google_done(self, user, err, days):
+        self._cancel = None
+        if not self.winfo_exists():
             return
-        self._say("Prüfe ...", ok=True)
-
-        def need_code(err):
-            if isinstance(err, accounts.TotpRequired):
-                self.l_code.pack(pady=4, before=self.l_remember)   # über der Checkbox einblenden
-                self.l_code.focus_set()
-                self._say(str(err), ok=True)
-                return True
-            return False
-
-        self._async(lambda: self.app.accounts.authenticate(user, pw, code),
-                    lambda u: self.app.login_done(u, self.remember.get()), need_code)
-
-    def _do_register(self):
-        if self._busy:
+        self.g_btn.configure(text="G   " + tr("Sign in with Google"))
+        if err:
+            self._say(tr(err))
             return
-        if self.r_pass.get() != self.r_pass2.get():
-            self._say("Die Passwörter stimmen nicht überein.")
-            return
-        self._say("Erstelle Konto ...", ok=True)
-        self._async(lambda: self.app.accounts.register(self.r_user.get(), self.r_name.get(), self.r_mail.get(), self.r_pass.get()),
-                    lambda u: self.app.login_done(u, self.remember.get()))
-
-    def _do_google(self):
-        if self._cancel_google is not None:          # läuft schon -> abbrechen
-            self._cancel_google.set()
-            return
-        if not GOOGLE_CLIENT_ID:
-            self._say("Die Google-Anmeldung ist noch nicht eingerichtet (GOOGLE_CLIENT_ID in core/version.py, siehe README).")
-            return
-        cancel = self._cancel_google = threading.Event()
-        self.g_btn.configure(text="Abbrechen (warte auf Browser ...)")
-        self._say("Der Browser wurde geöffnet. Bitte dort bei Google anmelden.", ok=True)
-
-        def work():
-            info = google_auth.sign_in(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, cancel=cancel)
-            return self.app.accounts.google_login(info["sub"], info["email"], info["name"], info["email_verified"])
-
-        def done(user):
-            self._cancel_google = None
-            self.app.login_done(user, self.remember.get())
-
-        def failed(err):
-            self._cancel_google = None
-            if self.winfo_exists():
-                self.g_btn.configure(text="Mit Google anmelden")
-            return False
-
-        self._async(work, done, failed)
+        self.app.login_done(user, days)
