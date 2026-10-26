@@ -1,0 +1,66 @@
+name: Build and release
+
+# Startet, wenn ein Tag wie v1.0.1 hochgeladen wird (oder manuell zum Testen).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Version aus dem Code lesen
+        id: ver
+        run: echo "version=$(python -c 'from core.version import APP_VERSION; print(APP_VERSION)')" >> "$GITHUB_OUTPUT"
+
+      - name: Tag und APP_VERSION müssen übereinstimmen
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          if [ "v${{ steps.ver.outputs.version }}" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} passt nicht zu APP_VERSION ${{ steps.ver.outputs.version }} in core/version.py"
+            exit 1
+          fi
+
+      - name: Pakete installieren
+        run: python -m pip install -r requirements.txt pyinstaller
+
+      - name: EXE bauen
+        run: >
+          pyinstaller --noconfirm --clean --noconsole --onefile --name ModLauncher
+          --collect-all customtkinter --collect-submodules modules
+          --hidden-import modules.autoclicker.plugin --collect-submodules pynput main.py
+
+      - name: version.json erzeugen
+        run: |
+          NOTES=""
+          if [ -f RELEASE_NOTES.txt ]; then NOTES="$(cat RELEASE_NOTES.txt)"; fi
+          python tools/make_exe_release.py "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download" --notes "$NOTES"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ModLauncher
+          path: |
+            dist/ModLauncher.exe
+            dist/version.json
+
+      - name: Release veröffentlichen
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/ModLauncher.exe dist/version.json \
+            --title "Version ${{ steps.ver.outputs.version }}" \
+            --notes "Automatisch gebaut. Download: ModLauncher.exe"
