@@ -4,7 +4,18 @@ import os
 import sys
 from pathlib import Path
 
-from core.version import APP_NAME
+from core.version import APP_ID
+
+DEFAULT_SETTINGS = {
+    "appearance_mode": "dark",     # dark | light | system
+    "accent": "#4f8cff",
+    "dl_limit_kbps": 0,            # 0 = unbegrenzt
+    "cpu_priority": "normal",      # normal | low
+    "cpu_cores": 0,                # 0 = alle
+    "ram_limit_mb": 0,             # 0 = kein Limit (nur Windows)
+    "assistant_url": "",
+    "contact_endpoint": "",
+}
 
 
 def app_dir() -> Path:
@@ -14,7 +25,7 @@ def app_dir() -> Path:
         base = Path.home() / "Library" / "Application Support"
     else:
         base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    d = base / APP_NAME
+    d = base / APP_ID
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -33,12 +44,20 @@ def load_json(path: Path, default=None):
 
 
 def save_json(path: Path, data) -> None:
-    Path(path).write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    """Atomar schreiben: erst Temp-Datei, dann ersetzen (kein halb geschriebenes JSON bei Absturz)."""
+    path = Path(path)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def load_settings() -> dict:
-    return load_json(app_dir() / "settings.json", {}) or {}
+    data = load_json(app_dir() / "settings.json", {}) or {}
+    merged = dict(DEFAULT_SETTINGS)
+    if isinstance(data, dict):
+        merged.update({k: v for k, v in data.items() if k in DEFAULT_SETTINGS})
+    return merged
 
 
 def save_settings(data: dict) -> None:
-    save_json(app_dir() / "settings.json", data)
+    save_json(app_dir() / "settings.json", {k: data[k] for k in DEFAULT_SETTINGS if k in data})

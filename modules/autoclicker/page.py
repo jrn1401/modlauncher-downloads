@@ -4,17 +4,19 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
+from core import theme
+
 from . import keys
 from .plugin import build_config
 
-BG_CARD = "#242831"
+BG_CARD = theme.c("card")
 MOUSE_LABELS = {v: k for k, v in keys.MOUSE_BUTTONS.items()}   # Anzeige -> left/right/middle
 UNIT_LABELS = {"Sekunden": "s", "Minuten": "min", "Stunden": "h"}
 
 
 class AutoClickerPage(ctk.CTkScrollableFrame):
     def __init__(self, parent, plugin):
-        super().__init__(parent, fg_color="#1b1e25")
+        super().__init__(parent, fg_color=theme.c("main"))
         self.plugin, self.app = plugin, plugin.app
         self._loading = True
         self._capture = None
@@ -78,13 +80,13 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
             f = ctk.CTkFrame(c, fg_color="transparent")
             f.grid(row=1, column=col, padx=(16 if col == 0 else 6, 6), pady=(0, 6))
             self._entry(f, self.v[key]).pack()
-            ctk.CTkLabel(f, text=label, text_color="gray").pack()
+            ctk.CTkLabel(f, text=label, text_color=theme.MUTED).pack()
         f = ctk.CTkFrame(c, fg_color="transparent")
         f.grid(row=1, column=3, padx=(24, 6), pady=(0, 6))
         self._entry(f, self.v["start_delay"]).pack()
-        ctk.CTkLabel(f, text="Startverzögerung (s)", text_color="gray").pack()
+        ctk.CTkLabel(f, text="Startverzögerung (s)", text_color=theme.MUTED).pack()
         ctk.CTkLabel(c, text="Minimum: 1 ms. Sehr kurze Intervalle sind abhängig von Betriebssystem und Zielprogramm.",
-                     text_color="gray").grid(row=2, column=0, columnspan=8, sticky="w", padx=16, pady=(0, 12))
+                     text_color=theme.MUTED).grid(row=2, column=0, columnspan=8, sticky="w", padx=16, pady=(0, 12))
 
     def _build_repeat_card(self, row):
         c = self._card(row, "Wiederholungen & Timer")
@@ -105,14 +107,14 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
         self.hk_labels = {}
         for r, (key, label) in enumerate((("hk_start", "Start"), ("hk_stop", "Stop")), start=1):
             ctk.CTkLabel(c, text=label, width=50, anchor="w").grid(row=r, column=0, padx=(16, 4), pady=4)
-            lab = ctk.CTkLabel(c, text="", width=170, fg_color="#14161b", corner_radius=6)
+            lab = ctk.CTkLabel(c, text="", width=170, fg_color=theme.c("inset"), corner_radius=6)
             lab.grid(row=r, column=1, padx=4)
             self.hk_labels[key] = lab
             ctk.CTkButton(c, text="Aufnehmen", width=100,
                           command=lambda k=key: self._capture_start(k)).grid(row=r, column=2, padx=8)
         ctk.CTkLabel(c, text="Start = Stop → eine Taste schaltet um (Toggle). Beispiele: F6, Strg+Alt+P.",
-                     text_color="gray").grid(row=3, column=0, columnspan=8, sticky="w", padx=16, pady=(4, 12))
-        self.hk_err = ctk.CTkLabel(c, text="", text_color="#ff6b6b", wraplength=600, justify="left")
+                     text_color=theme.MUTED).grid(row=3, column=0, columnspan=8, sticky="w", padx=16, pady=(4, 12))
+        self.hk_err = ctk.CTkLabel(c, text="", text_color=theme.DANGER, wraplength=600, justify="left")
         self.hk_err.grid(row=4, column=0, columnspan=8, sticky="w", padx=16)
 
     def _build_control_card(self, row):
@@ -271,7 +273,7 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
             return
         eng = self.plugin.engine
         if self._input_error and not eng.running:
-            self.status.configure(text=self._input_error, text_color="#ff6b6b")
+            self.status.configure(text=self._input_error, text_color=theme.DANGER)
         elif eng.state == eng.RUNNING:
             self.status.configure(text="● Läuft", text_color="#2ecc71")
         elif eng.state == eng.WAITING:
@@ -280,7 +282,7 @@ class AutoClickerPage(ctk.CTkScrollableFrame):
             reasons = {"count": "Fertig (Wiederholungen erreicht)", "timer": "Fertig (Timer abgelaufen)",
                        "stopped": "Gestoppt"}
             txt = reasons.get(eng.last_reason, eng.last_reason) or "Bereit"
-            color = "#ff6b6b" if txt.startswith("error") else "gray90"
+            color = theme.DANGER if txt.startswith("error") else theme.TEXT
             self.status.configure(text=txt, text_color=color)
         mins, secs = divmod(int(eng.elapsed()), 60)
         self.stats.configure(text=f"Ausführungen: {eng.count}   ·   Laufzeit: {mins:02d}:{secs:02d}")

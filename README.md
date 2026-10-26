@@ -1,137 +1,88 @@
-# ModLauncher
+# Jaron's OP Makro
 
-**Download (Windows):** https://github.com/jrn1401/modlauncher-downloads/releases/latest/download/ModLauncher.exe
+Modularer Desktop-Launcher (Python · CustomTkinter · pynput) mit Konten, Auto-Update und dem
+ersten Modul **Jaron Op Makro** (Auto-Clicker & Keyer).
 
-# ModLauncher
+**Download (Windows):** https://github.com/jrn1401/modlauncher-downloads/releases/latest/download/JaronsOPMakro.exe
 
-Modularer Desktop-Launcher (Python · CustomTkinter · pynput) mit Auto-Update.
-Erstes Modul: **Jaron Op Makro** (Auto-Clicker & Keyer).
+Windows warnt bei unbekannten Programmen: *Weitere Informationen → Trotzdem ausführen*.
 
-**Windows, ohne Kommandozeile:** `START.bat` doppelklicken (installiert beim ersten Mal alles
-Nötige und startet den Launcher). `EXE_BAUEN.bat` doppelklicken, um eine `ModLauncher.exe`
-zu erzeugen. Voraussetzung: Python 3.10+ ist installiert (beim Installer "Add Python to PATH" anhaken).
+## Funktionen
 
-## Starten
+- Anmeldung mit Benutzername/Passwort, „Angemeldet bleiben“, optional Google, optional 2FA (Authenticator-App)
+- Dashboard mit Willkommensnachricht, Update-Prüfung, Modulübersicht
+- Einstellungen: Konto (Anzeigename, E-Mail, Passwort, 2FA), Aussehen (Dunkel/Hell/System, Akzentfarbe),
+  Leistung (Download-Limit, CPU-Priorität, CPU-Kerne, RAM-Limit unter Windows)
+- Hilfe-Assistent (eingebaute FAQ, optional KI über eigenen Server) und Kontaktformular
+- Modul „Jaron Op Makro“: jede Maus-/Tastaturtaste, Intervall (min/s/ms), X-mal oder unendlich, Timer,
+  globale Start/Stop-Hotkeys, Profile als JSON
+
+## Wichtig zu den Konten
+
+Konten und Passwörter liegen **nur lokal auf dem PC des Nutzers** (`%APPDATA%\JaronsOPMakro\accounts.json`,
+Passwörter als PBKDF2-Hash). Es gibt keinen Server, also auch kein „Passwort vergessen“ und keine Daten, die du als
+Betreiber einsehen kannst. Ein gemeinsames Konto-System auf einem Server (z. B. Supabase/Firebase) ist bewusst nicht
+eingebaut: GitHub eignet sich dafür nicht, weil man dort ohne Schlüssel im Programm nicht schreiben kann, und ein
+Schlüssel im Programm würde jedem Nutzer Zugriff auf dein Repository geben.
+
+## Starten (zum Entwickeln)
 
 ```bash
 pip install -r requirements.txt
 python main.py
 ```
+Windows ohne Kommandozeile: `START.bat` doppelklicken. Python 3.11–3.13 empfohlen.
+macOS: Terminal/App unter *Systemeinstellungen → Datenschutz* für Bedienungshilfen und Eingabeüberwachung freigeben.
+Linux: nur X11 (kein reines Wayland).
 
-Python 3.10+ wird benötigt. Unter macOS müssen Terminal bzw. die App in
-*Systemeinstellungen → Datenschutz → Bedienungshilfen* und *Eingabeüberwachung*
-freigegeben werden, sonst funktionieren Tastensimulation und globale Hotkeys nicht.
-Unter Linux funktioniert pynput nur mit X11, nicht unter reinem Wayland.
+## Veröffentlichen und Updates (automatisch über GitHub)
 
-## Projektstruktur
+Im Repository liegt `.github/workflows/release.yml`. Es baut die `JaronsOPMakro.exe` auf einem Windows-Server von GitHub.
 
-```
-main.py                      Einstieg
-core/app.py                  Fenster, Seitenleiste, Dashboard, Update-Dialog
-core/plugin_api.py           BasePlugin (Schnittstelle für Module)
-core/plugin_manager.py       findet modules/<name>/plugin.py automatisch
-core/updater.py              Auto-Update (version.json, SHA-256, Installation)
-core/config.py               Pfade, Einstellungen, Profile
-modules/autoclicker/         erstes Modul (engine, keys, plugin, page)
-tools/make_release.py        erzeugt Update-ZIP + version.json
-```
+1. In `core/version.py` die Zahl bei `APP_VERSION` erhöhen (z. B. `1.0.1`).
+2. Optional: Neuigkeiten in `RELEASE_NOTES.txt` schreiben.
+3. Änderungen hochladen und einen Tag setzen, der zur Version passt:
+   ```bash
+   git add -A && git commit -m "Version 1.0.1" && git push
+   git tag v1.0.1 && git push origin v1.0.1
+   ```
+4. GitHub baut und veröffentlicht `JaronsOPMakro.exe` und `version.json` als Release. Ein paar Minuten später
+   sehen alle Nutzer beim Start den Update-Dialog.
+
+Manuell ohne GitHub-Build: `EXE_BAUEN.bat`, dann `RELEASE.bat`, dann beide Dateien aus `dist` an ein Release hängen.
+
+## Google-Anmeldung einrichten (optional)
+
+1. console.cloud.google.com → Projekt anlegen → *APIs & Dienste → OAuth-Zustimmungsbildschirm* einrichten
+   (Extern; Testnutzer eintragen, solange die App nicht verifiziert ist).
+2. *Anmeldedaten → Anmeldedaten erstellen → OAuth-Client-ID → Typ „Desktop-App“*.
+3. `GOOGLE_CLIENT_ID` und `GOOGLE_CLIENT_SECRET` in `core/version.py` eintragen (bei Desktop-Apps ist das Secret
+   nicht geheim, Google verlangt es trotzdem) und neu veröffentlichen.
+
+## KI-Assistent einrichten (optional)
+
+Ohne Einrichtung antwortet die eingebaute FAQ. Für KI: `server_examples/assistant_worker.js` als Cloudflare Worker
+bereitstellen (API-Schlüssel als Secret im Worker, Ausgabenlimit setzen) und die Worker-Adresse bei `ASSISTANT_URL`
+in `core/version.py` eintragen. **Niemals einen API-Schlüssel in das Programm schreiben.**
+
+## Kontaktformular
+
+Standardmäßig öffnet sich das Mailprogramm des Nutzers mit einer fertigen Mail an `FEEDBACK_EMAIL`
+(`core/version.py`). Für direktes Senden ohne Mailprogramm: bei einem Formular-Dienst (z. B. Formspree) ein
+Formular anlegen, das an deine Adresse weiterleitet, und dessen https-Adresse bei `CONTACT_ENDPOINT` eintragen.
 
 ## Neues Modul hinzufügen
 
-1. Ordner `modules/mein_tool/` mit leerer `__init__.py` anlegen.
-2. `modules/mein_tool/plugin.py` mit einer Klasse `Plugin(BasePlugin)`:
+1. Ordner `modules/mein_tool/` mit leerer `__init__.py` und einer `plugin.py` mit `class Plugin(BasePlugin)`
+   (siehe `core/plugin_api.py`; `create_page(parent)` liefert die Seite).
+2. Ordnernamen in `modules/__init__.py` bei `BUILTIN_MODULES` eintragen (damit er auch in der EXE steckt)
+   und in der Build-Zeile `--hidden-import modules.mein_tool.plugin` ergänzen.
 
-```python
-import customtkinter as ctk
-from core.plugin_api import BasePlugin
-
-class Plugin(BasePlugin):
-    id = "mein_tool"
-    name = "Mein Tool"
-    icon = "★"
-    description = "Kurzbeschreibung fürs Dashboard"
-
-    def create_page(self, parent):
-        page = ctk.CTkFrame(parent)
-        ctk.CTkLabel(page, text="Hallo").pack(pady=40)
-        return page
-```
-
-Beim nächsten Start erscheint es in der Seitenleiste und im Dashboard.
-Zustand, Hotkeys und Threads gehören ins Plugin-Objekt (`on_load` / `on_shutdown`),
-die Seite ist nur die Ansicht und wird erst beim ersten Öffnen erzeugt.
-Aus Hintergrund-Threads die UI immer über `self.app.call_soon(fn, ...)` ansprechen.
-
-## Auto-Update einrichten
-
-1. In `core/version.py` die `UPDATE_MANIFEST_URL` auf deinen Server setzen.
-2. Version in `core/version.py` erhöhen und ein Release bauen:
-   ```bash
-   python tools/make_release.py --base-url https://deine-domain.de/modlauncher --notes "Was neu ist"
-   ```
-3. `dist/version.json` und das ZIP in `dist/` auf den Server hochladen.
-
-Beim Start prüft der Launcher die `version.json`. Ist die Version höher, erscheint ein
-Dialog; das Paket wird heruntergeladen, per SHA-256 geprüft und installiert.
-
-- Quellcode-Betrieb: ZIP wird über den Programmordner entpackt, Launcher startet neu.
-- Windows-EXE: eine Hilfsdatei ersetzt die EXE und startet sie neu. Dafür einen
-  `windows`-Eintrag unter `packages` in der `version.json` ergänzen (url + sha256).
-- macOS/Linux-Binary: Die Datei wird heruntergeladen und der Ordner geöffnet; der
-  Austausch erfolgt manuell.
-
-Die `version.json` sollte nur über HTTPS und von einem Server ausgeliefert werden, dem du
-vertraust. Wer sie ändern kann, kann Code auf den Rechnern deiner Nutzer ausführen.
-Für den produktiven Einsatz empfiehlt sich zusätzlich eine Signaturprüfung.
-
-## Als Programm bauen (PyInstaller)
-
-```bash
-pip install pyinstaller
-pyinstaller --noconsole --onefile --name ModLauncher \
-  --collect-all customtkinter --collect-submodules modules \
-  --collect-submodules pynput main.py
-```
-
-Jeweils auf dem Zielsystem bauen (Windows → .exe, macOS → .app). Neue Module
-liegen dann in der Binary; für sie ist ein neuer Build nötig.
-
-## Auto-Clicker: Profile
-
-Profile sind JSON-Dateien (Standardordner: `<Config-Ordner>/ModLauncher/profiles/autoclicker`).
-Der zuletzt verwendete Zustand wird beim Beenden gespeichert und beim Start geladen.
+## Profil-Format (Jaron Op Makro)
 
 ```json
-{
-  "name": "Standard",
-  "target": "key:e",
-  "interval": {"ms": 100, "s": 0, "min": 0},
-  "repeat_mode": "count",
-  "repeat_count": 10,
-  "timer_enabled": true,
-  "timer_value": 5,
-  "timer_unit": "min",
-  "start_delay": 3,
-  "hotkey_start": "<f6>",
-  "hotkey_stop": "<f6>"
-}
+{"name": "Standard", "target": "key:e", "interval": {"ms": 100, "s": 0, "min": 0},
+ "repeat_mode": "count", "repeat_count": 10, "timer_enabled": true, "timer_value": 5, "timer_unit": "min",
+ "start_delay": 3, "hotkey_start": "<f6>", "hotkey_stop": "<f6>"}
 ```
-
-`target`: `mouse:left|right|middle` oder `key:<name>` (Buchstabe, Ziffer, `space`, `enter`, `f5` ...).
-Hotkeys im pynput-Format, z. B. `<ctrl>+<alt>+p`. Sind Start und Stop gleich, schaltet die Taste um.
-
-## Updates für alle Nutzer (Windows-EXE)
-
-Einmalig:
-1. Entscheide, wo die Downloads liegen (eigener Webspace oder GitHub Releases) und trage in
-   `core/version.py` die Adresse der `version.json` ein, z. B. `https://deine-domain.de/modlauncher/version.json`.
-2. `EXE_BAUEN.bat` ausführen und die fertige `dist\ModLauncher.exe` an deine Nutzer verteilen.
-   Diese erste Version müssen sie einmal selbst herunterladen.
-
-Für jedes Update:
-1. `APP_VERSION` in `core/version.py` erhöhen (z. B. 1.0.0 -> 1.1.0).
-2. `EXE_BAUEN.bat` ausführen.
-3. `RELEASE.bat` ausführen (erzeugt `dist\version.json`; die Basis-Adresse wird beim ersten Mal abgefragt).
-4. `dist\ModLauncher.exe` und `dist\version.json` hochladen und die alten Dateien ersetzen.
-
-Beim nächsten Start sehen deine Nutzer einen Update-Dialog und klicken einmal auf "Jetzt aktualisieren".
+`target`: `mouse:left|right|middle` oder `key:<name>`. Hotkeys im pynput-Format, z. B. `<ctrl>+<alt>+p`.

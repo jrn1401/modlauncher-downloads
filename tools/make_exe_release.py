@@ -20,7 +20,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from core.version import APP_VERSION, UPDATE_MANIFEST_URL  # noqa: E402
 
-EXE_NAME = "ModLauncher.exe"
+from core.version import APP_ID  # noqa: E402
+
+EXE_NAME = f"{APP_ID}.exe"
 
 
 def main() -> int:

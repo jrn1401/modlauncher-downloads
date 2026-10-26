@@ -1,1 +1,1 @@
-Erste Version: Launcher mit dem Modul "Jaron Op Makro".
+Version 1.0.0: Konten mit Anmeldung (Google/2FA), Einstellungen, Design, Hilfe-Assistent, Kontaktformular und das Modul "Jaron Op Makro".

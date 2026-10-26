@@ -36,12 +36,12 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-.venv-build\Scripts\pyinstaller --noconfirm --clean --noconsole --onefile --name ModLauncher --collect-all customtkinter --collect-submodules modules --hidden-import modules.autoclicker.plugin --collect-submodules pynput main.py
+.venv-build\Scripts\pyinstaller --noconfirm --clean --noconsole --onefile --name JaronsOPMakro --collect-all customtkinter --collect-submodules modules --hidden-import modules.autoclicker.plugin --collect-submodules pynput main.py
 if errorlevel 1 (
   echo Build fehlgeschlagen. Meldung oben lesen.
   pause
   exit /b 1
 )
 echo.
-echo Fertig! Die Datei liegt hier: %~dp0dist\ModLauncher.exe
+echo Fertig! Die Datei liegt hier: %~dp0dist\JaronsOPMakro.exe
 pause

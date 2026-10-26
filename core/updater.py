@@ -25,13 +25,14 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 import webbrowser
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from core.version import APP_NAME, APP_VERSION, UPDATE_MANIFEST_URL
+from core.version import APP_ID, APP_VERSION, UPDATE_MANIFEST_URL
 
 FROZEN = getattr(sys, "frozen", False)
 APP_ROOT = Path(__file__).resolve().parent.parent
@@ -60,7 +61,7 @@ def platform_key() -> str:
 
 
 def _open(url: str, timeout: float = 10):
-    req = urllib.request.Request(url, headers={"User-Agent": f"{APP_NAME}/{APP_VERSION}"})
+    req = urllib.request.Request(url, headers={"User-Agent": f"{APP_ID}/{APP_VERSION}"})
     return urllib.request.urlopen(req, timeout=timeout)
 
 
@@ -76,18 +77,25 @@ def check() -> UpdateInfo | None:
     return UpdateInfo(data["version"], data.get("notes", ""), pkg["url"], pkg.get("sha256", ""))
 
 
-def download(info: UpdateInfo, progress=None) -> Path:
-    """Lädt das Paket herunter und prüft die SHA-256-Summe."""
-    tmp = Path(tempfile.mkdtemp(prefix="modlauncher_update_"))
+def download(info: UpdateInfo, progress=None, max_kbps: float = 0) -> Path:
+    """Lädt das Paket herunter (optional gedrosselt auf max_kbps KB/s) und prüft die SHA-256-Summe."""
+    tmp = Path(tempfile.mkdtemp(prefix="launcher_update_"))
     target = tmp / (info.url.rsplit("/", 1)[-1] or "update.bin")
     sha = hashlib.sha256()
+    limit = max(0.0, float(max_kbps or 0)) * 1024      # Bytes pro Sekunde, 0 = unbegrenzt
     with _open(info.url, timeout=30) as resp, open(target, "wb") as fh:
         total = int(resp.headers.get("Content-Length") or 0)
         done = 0
-        while chunk := resp.read(64 * 1024):
+        t0 = time.monotonic()
+        chunk_size = 8 * 1024 if 0 < limit < 256 * 1024 else 64 * 1024
+        while chunk := resp.read(chunk_size):
             fh.write(chunk)
             sha.update(chunk)
             done += len(chunk)
+            if limit:
+                ahead = done / limit - (time.monotonic() - t0)
+                if ahead > 0:
+                    time.sleep(ahead)
             if progress and total:
                 progress(done / total)
     if info.sha256 and sha.hexdigest().lower() != info.sha256.lower():
