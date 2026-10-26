@@ -68,7 +68,7 @@ jobs:
       - name: EXE bauen
         run: >
           pyinstaller --noconfirm --clean --noconsole --onefile --name JaronsOPMakro --icon build/icon.ico
-          --collect-all customtkinter --collect-submodules modules --collect-submodules core --collect-submodules pynput main.py
+          --collect-all customtkinter --collect-submodules pynput $(python tools/pyi_args.py) main.py
 
       - name: Selbsttest der gebauten EXE (lädt alle Module, prüft Zertifikate)
         run: |
@@ -111,7 +111,7 @@ jobs:
       - run: python tools/make_icon.py
       - run: >
           pyinstaller --noconfirm --clean --onefile --name JaronsOPMakro-linux
-          --collect-all customtkinter --collect-submodules modules --collect-submodules core --collect-submodules pynput main.py
+          --collect-all customtkinter --collect-submodules pynput $(python tools/pyi_args.py) main.py
       - uses: actions/upload-artifact@v4
         with: { name: JaronsOPMakro-linux, path: dist/JaronsOPMakro-linux }
 

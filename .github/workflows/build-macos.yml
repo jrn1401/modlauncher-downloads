@@ -31,7 +31,7 @@ jobs:
         run: >
           pyinstaller --noconfirm --clean --windowed --name JOPML --icon build/icon.icns
           --osx-bundle-identifier de.jopml.launcher
-          --collect-all customtkinter --collect-submodules modules --collect-submodules core --collect-submodules pynput main.py
+          --collect-all customtkinter --collect-submodules pynput $(python tools/pyi_args.py) main.py
       - name: Selbsttest der gebauten App (lädt alle Module)
         run: |
           dist/JOPML.app/Contents/MacOS/JOPML --selftest "$PWD/selftest.txt" || true

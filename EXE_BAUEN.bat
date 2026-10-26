@@ -37,7 +37,7 @@ if errorlevel 1 (
   exit /b 1
 )
 .venv-build\Scripts\python tools\make_icon.py
-.venv-build\Scripts\pyinstaller --noconfirm --clean --noconsole --onefile --name JaronsOPMakro --icon build\icon.ico --collect-all customtkinter --collect-submodules modules --collect-submodules core --collect-submodules pynput main.py
+.venv-build\Scripts\pyinstaller --noconfirm --clean --noconsole --onefile --name JaronsOPMakro --icon build\icon.ico --paths . --hidden-import modules.autoclicker.plugin --hidden-import modules.macros.plugin --hidden-import modules.extensions.plugin --hidden-import modules.recoil.plugin --collect-submodules modules.autoclicker --collect-submodules modules.macros --collect-submodules modules.extensions --collect-submodules modules.recoil --collect-submodules core --collect-all customtkinter --collect-submodules pynput main.py
 if errorlevel 1 (
   echo Build fehlgeschlagen. Meldung oben lesen.
   pause
